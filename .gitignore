@@ -1,0 +1,17 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project working files (not for public distribution)
+backup/
+scripts/
+reference/
+learnings-calculator.md
+test-cases.md
+project-spec.md
+project-directions.md
+
+# Python
+__pycache__/
+*.pyc
