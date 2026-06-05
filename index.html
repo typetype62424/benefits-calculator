@@ -456,7 +456,7 @@
 
       <div class="field span2">
         <label for="f-salary">Amount</label>
-        <input type="text" id="f-salary" inputmode="numeric" placeholder="0" oninput="onSalaryChange()" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+        <input type="text" id="f-salary" inputmode="numeric" oninput="onSalaryChange()" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
         <div class="warn-text" id="salary-warn" hidden></div>
       </div>
 
@@ -473,7 +473,7 @@
 
       <div class="field" id="f-arp-wrap">
         <label for="f-arp">ARP Amount</label>
-        <input type="text" id="f-arp" inputmode="numeric" placeholder="0" disabled onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+        <input type="text" id="f-arp" inputmode="numeric" disabled onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
       </div>
 
       <hr class="sep">
@@ -489,7 +489,7 @@
 
       <div class="field" id="f-allowance-wrap">
         <label for="f-allowance">Housing Allowance Amount</label>
-        <input type="text" id="f-allowance" inputmode="numeric" placeholder="0" disabled onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+        <input type="text" id="f-allowance" inputmode="numeric" disabled onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
       </div>
 
       <hr class="sep">
@@ -619,7 +619,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.9.4 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.9.4.1 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <script>
@@ -665,6 +665,7 @@ function markDirty() {
 
 window.addEventListener('DOMContentLoaded', () => {
   buildSchedTable();
+  ['f-salary','f-arp','f-allowance'].forEach(id => fmtCurrency(document.getElementById(id)));
   document.addEventListener('input',  markDirty);
   document.addEventListener('change', markDirty);
 });
@@ -1208,7 +1209,7 @@ function parseCurrency(el) {
 
 function fmtCurrency(el) {
   const n = parseFloat(String(el.value).replace(/[$,]/g, ''));
-  if (!isNaN(n) && n > 0) el.value = '$' + n.toLocaleString('en-US');
+  el.value = '$' + (isNaN(n) ? 0 : n).toLocaleString('en-US');
 }
 
 function unfmtCurrency(el) {
