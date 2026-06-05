@@ -12,7 +12,7 @@ No installation required. No server required. Open `index.html` directly in any 
 - **Appointment-level aware** — benefit eligibility varies by appointment percentage (100%, 75%, 50%, 25%)
 - **Multi-point charge support** — up to 15 churches with even or custom cost-share splits
 - **Real-time salary minimum check** — flags salaries below the 2026 conference minimum salary schedule; soft note for retired clergy
-- **Editable constants** — all year-specific rates (HealthFlex, DCA reference, salary schedule, etc.) are updatable via the Advanced Settings panel without editing code
+- **Editable constants** — all year-specific rates (HealthFlex, DAC reference, salary schedule, etc.) are updatable via the Advanced Settings panel without editing code
 - **Copyable output** — results table copies to clipboard with formatting preserved for pasting into Word or email
 - **Calculation detail** — toggle a plain-language explanation of how each figure was derived
 - **Label toggle** — switch between abbreviated (ARP, CPP, UMPIP) and full terminology
@@ -33,7 +33,7 @@ Figures reflect **2026 conference recommendations** as adopted by the Commission
 | Compass Rate | 11% of Total Compensation |
 | UMPIP Minimum Rate | 7% of Total Compensation |
 | CPP Rate | 3% of Total Compensation |
-| CPP DCA Reference Rate | $1,587 |
+| CPP DAC Reference Rate | $1,587 |
 
 Minimum salary figures follow the 2026 Minimum Salary Schedule (3% increase across all categories).
 
@@ -46,6 +46,7 @@ Minimum salary figures follow the 2026 Minimum Salary Schedule (3% increase acro
 3. Add church information for multi-point charges
 4. Click **Calculate**
 5. Copy the results table directly into an email or Word document
+6. Click **Show calculation detail** for a breakdown of how each figure is calculated. Useful for copying into an SOU for multi-point charges.
 
 To update rates for a new year, click **⚙ Advanced Settings** at the bottom of the page and edit the constants directly — no code changes required.
 

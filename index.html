@@ -589,10 +589,10 @@
             <input type="number" id="s-cpp" value="3" min="0" max="100" step="0.1">
           </div>
           <div class="sf">
-            <label>CPP Cost of DCA — DCA Reference ($)</label>
-            <input type="text" inputmode="numeric" id="s-dca" value="$1,587" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <label>CPP Cost of DAC — DAC Reference ($)</label>
+            <input type="text" inputmode="numeric" id="s-dac" value="$1,587" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
-          <p class="adv-note">CPP cap = CPP cost of DCA × 2. The value above is the CPP cost associated with the Denominational Compensation Average — not the DCA itself. Verify against current Wespath guidelines annually.</p>
+          <p class="adv-note">CPP cap = CPP cost of DAC × 2. The value above is the CPP cost associated with the Denominational Average Compensation — not the DAC itself. Verify against current Wespath guidelines annually.</p>
 
           <div style="grid-column:1/-1">
             <div class="card-title" style="margin-top:16px;margin-bottom:6px">2026 Minimum Salary Schedule (Full-Time)</div>
@@ -840,7 +840,7 @@ function getSettings() {
     compass:    (parseFloat(document.getElementById('s-compass').value) || 11) / 100,
     umpip:      (parseFloat(document.getElementById('s-umpip').value)   || 7)  / 100,
     cpp:        (parseFloat(document.getElementById('s-cpp').value)     || 3)  / 100,
-    dca:        parseCurrency(document.getElementById('s-dca'))     || 1587,
+    dac:        parseCurrency(document.getElementById('s-dac'))     || 1587,
   };
 }
 
@@ -899,7 +899,7 @@ function calculate() {
   const healthFlex  = (appt >= 0.75 && !retired) ? cfg.hf : 0;
   const retType     = appt >= 1.0 ? 'compass' : 'umpip';
   const retirement  = appt >= 1.0 ? totalComp * cfg.compass : totalComp * cfg.umpip;
-  const cppCap      = cfg.dca * 2;
+  const cppCap      = cfg.dac * 2;
   const cpp         = appt >= 1.0 ? Math.min(totalComp * cfg.cpp, cppCap) : 0;
 
   // Total
@@ -1051,7 +1051,7 @@ function renderDetail() {
   if (r.appt >= 1.0) {
     const raw = r.totalComp * cfg.cpp;
     const capped = raw > r.cppCap;
-    lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(raw)}. Cap = 2026 CPP cost of DCA (${fmt(cfg.dca)}) × 2 = ${fmt(r.cppCap)}.${capped ? ` Cap applied — using ${fmt(r.cpp)}.` : ` Under cap — using ${fmt(r.cpp)}.`} Verify DCA reference rate against current Wespath guidelines.</p>`);
+    lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(raw)}. Cap = 2026 CPP cost of DAC (${fmt(cfg.dac)}) × 2 = ${fmt(r.cppCap)}.${capped ? ` Cap applied — using ${fmt(r.cpp)}.` : ` Under cap — using ${fmt(r.cpp)}.`} Verify DAC reference rate against current Wespath guidelines.</p>`);
   } else {
     lines.push(`<p><strong>CPP:</strong> $0.00 — requires 100% appointment.</p>`);
   }
