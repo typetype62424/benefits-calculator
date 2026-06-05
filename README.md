@@ -53,7 +53,7 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 
 ## Version
 
-**v0.9.4** — 2026 data
+**v0.9.4.1** — 2026 data
 
 ---
 
