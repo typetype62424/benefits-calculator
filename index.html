@@ -53,6 +53,7 @@
     }
     @media (max-width: 580px) { .form-grid { grid-template-columns: 1fr; } }
 
+    [hidden] { display: none !important; }
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field.span2 { grid-column: 1 / -1; }
 
@@ -414,6 +415,16 @@
   <div class="card">
     <div class="form-grid">
 
+      <div class="sec-label">Conference</div>
+
+      <div class="field span2">
+        <div class="radio-group">
+          <label><input type="radio" name="conf" value="NY" checked onchange="onConfChange()"> NY</label>
+          <label><input type="radio" name="conf" value="NE" onchange="onConfChange()"> NE</label>
+        </div>
+      </div>
+
+      <hr class="sep">
       <div class="sec-label">Pastor Information</div>
 
       <div class="field">
@@ -423,12 +434,7 @@
 
       <div class="field">
         <label for="f-status">Clergy Status</label>
-        <select id="f-status" onchange="onStatusChange()">
-          <option value="full-elder">Full Elder / Deacon</option>
-          <option value="associate">Associate Member</option>
-          <option value="provisional">Provisional Elder / Deacon</option>
-          <option value="local-pastor">Local Pastor</option>
-        </select>
+        <select id="f-status" onchange="onStatusChange()"></select>
       </div>
 
       <div class="field">
@@ -554,43 +560,46 @@
     <div id="adv-panel" hidden>
       <div class="card">
         <div class="card-title">Editable Constants — Update annually</div>
+
+        <!-- NY -->
+        <div id="adv-ny">
         <div class="settings-grid">
 
           <div class="sf">
-            <label>HealthFlex Uniform Rate ($)</label>
-            <input type="text" inputmode="numeric" id="s-hf" value="$22,200" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <label>HealthFlex Blended Rate ($)</label>
+            <input type="text" inputmode="numeric" id="s-ny-hf" value="$22,200" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
             <label>ARP Full-Time Minimum ($)</label>
-            <input type="text" inputmode="numeric" id="s-arp-min" value="$6,400" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <input type="text" inputmode="numeric" id="s-ny-arp-min" value="$6,400" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
             <label>ARP Per ¼-Time Increment ($)</label>
-            <input type="text" inputmode="numeric" id="s-arp-inc" value="$1,600" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <input type="text" inputmode="numeric" id="s-ny-arp-inc" value="$1,600" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
             <label>MCAA — First Additional Church ($)</label>
-            <input type="text" inputmode="numeric" id="s-mcaa" value="$1,500" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <input type="text" inputmode="numeric" id="s-ny-mcaa" value="$1,500" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
             <label>MCAA — Max Additional for 3+ Churches ($)</label>
-            <input type="text" inputmode="numeric" id="s-mcaa-max" value="$1,500" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <input type="text" inputmode="numeric" id="s-ny-mcaa-max" value="$1,500" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
             <label>Compass Rate (%)</label>
-            <input type="number" id="s-compass" value="11" min="0" max="100" step="0.1">
+            <input type="number" id="s-ny-compass" value="11" min="0" max="100" step="0.1">
           </div>
           <div class="sf">
             <label>UMPIP Minimum Rate (%)</label>
-            <input type="number" id="s-umpip" value="7" min="0" max="100" step="0.1">
+            <input type="number" id="s-ny-umpip" value="7" min="0" max="100" step="0.1">
           </div>
           <div class="sf">
             <label>CPP Rate (%)</label>
-            <input type="number" id="s-cpp" value="3" min="0" max="100" step="0.1">
+            <input type="number" id="s-ny-cpp" value="3" min="0" max="100" step="0.1">
           </div>
           <div class="sf">
             <label>CPP Cost of DAC — DAC Reference ($)</label>
-            <input type="text" inputmode="numeric" id="s-dac" value="$1,587" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+            <input type="text" inputmode="numeric" id="s-ny-dac" value="$1,587" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <p class="adv-note">CPP cap = CPP cost of DAC × 2. The value above is the CPP cost associated with the Denominational Average Compensation — not the DAC itself. Verify against current Wespath guidelines annually.</p>
 
@@ -607,11 +616,59 @@
                   <th>Full Elder/Deacon</th>
                 </tr>
               </thead>
-              <tbody id="sched-body"></tbody>
+              <tbody id="sched-body-ny"></tbody>
             </table>
           </div>
 
         </div>
+        </div>
+
+        <!-- NE -->
+        <div id="adv-ne" hidden>
+        <div class="settings-grid">
+
+          <div class="sf">
+            <label>HealthFlex Blended Rate ($)</label>
+            <input type="text" inputmode="numeric" id="s-ne-hf" value="$22,596" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+          </div>
+          <div class="sf">
+            <label>Reimbursable Full-Time Minimum ($)</label>
+            <input type="text" inputmode="numeric" id="s-ne-arp-min" value="$3,700" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+          </div>
+          <div class="sf">
+            <label>Compass Rate (%)</label>
+            <input type="number" id="s-ne-compass" value="11" min="0" max="100" step="0.1">
+          </div>
+          <div class="sf">
+            <label>UMPIP Recommended Rate (%)</label>
+            <input type="number" id="s-ne-umpip" value="10" min="0" max="100" step="0.1">
+          </div>
+          <div class="sf">
+            <label>CPP Rate (%)</label>
+            <input type="number" id="s-ne-cpp" value="3" min="0" max="100" step="0.1">
+          </div>
+          <div class="sf">
+            <label>UMLife Options Rate (%)</label>
+            <input type="number" id="s-ne-umlife" value="1" min="0" max="100" step="0.1">
+          </div>
+          <p class="adv-note">CPP applies at full-time (100%) appointment with no cap noted in conference guidance. UMLife Options is a CPP alternative for ¾ time and below. Verify rates against current NEAC Benefits Office guidance annually.</p>
+
+          <div style="grid-column:1/-1">
+            <div class="card-title" style="margin-top:16px;margin-bottom:6px">2026 Minimum Salary — Base &amp; Service Add-On</div>
+            <p class="adv-note" style="margin-bottom:8px">Minimum salary = base amount (by clergy type) + service add-on (by year bracket), scaled by appointment time. Part-time proration method is not specified in conference guidance; this calculator scales proportionally by appointment fraction.</p>
+            <table class="sched-table" id="ne-base-table">
+              <thead><tr><th>Clergy Type</th><th>Base Minimum ($)</th></tr></thead>
+              <tbody id="ne-base-body"></tbody>
+            </table>
+            <table class="sched-table" id="ne-bracket-table" style="margin-top:10px">
+              <thead><tr><th>Years of Service</th><th>Add to Base ($)</th></tr></thead>
+              <tbody id="ne-bracket-body"></tbody>
+            </table>
+          </div>
+
+        </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -619,14 +676,14 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.9.5 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.10.0 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <script>
 // ─────────────────────────────────────────
 // DATA
 // ─────────────────────────────────────────
-const SCHEDULE = {
+const SCHEDULE_NY = {
   'local-pastor':  [44675,44950,45225,45501,45776,46052,46326,46603,46878,47154,47428,47703,47980,48256,48792,48806,49081,49357,49634,49907,50183,50459,50734,51010,51285],
   'provisional':   [47428,47735,48039,48346,48652,48958,49264,49571],
   'associate':     [48039,48377,48715,49020,49387,49723,50060,50397,50726,51069,51406,51742,52079,52417,52754,53089,53426,53762,54099,54436,54772,55126,55446,55782,56120],
@@ -635,10 +692,52 @@ const SCHEDULE = {
 
 const YR_LABELS = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25+'];
 
+// NEAC minimum salary: base by clergy type + flat add-on by service-year bracket
+const NE_BASE = {
+  'ne-elder':       50000,
+  'ne-local-mdiv':  47900,
+  'ne-local-cos':   46900,
+  'ne-local-other': 45900,
+};
+const NE_BRACKETS = [
+  { min: 3,  max: 5,   add: 600,  label: '3–5 years'    },
+  { min: 6,  max: 10,  add: 1200, label: '6–10 years'   },
+  { min: 11, max: 15,  add: 1500, label: '11–15 years'  },
+  { min: 16, max: 999, add: 2000, label: 'Over 15 years'},
+];
+function neBracketAdd(years) {
+  for (const b of NE_BRACKETS) { if (years >= b.min && years <= b.max) return b.add; }
+  return 0;
+}
+
+const STATUS_OPTIONS = {
+  NY: [
+    { value: 'full-elder',  label: 'Full Elder / Deacon' },
+    { value: 'associate',   label: 'Associate Member' },
+    { value: 'provisional', label: 'Provisional Elder / Deacon' },
+    { value: 'local-pastor',label: 'Local Pastor' },
+  ],
+  NE: [
+    { value: 'ne-elder',       label: 'Elder / Deacon / Provisional Elder-Deacon / Associate Member' },
+    { value: 'ne-local-mdiv',  label: 'Local Pastor — M.Div. or Advanced Course of Study' },
+    { value: 'ne-local-cos',   label: 'Local Pastor — Course of Study or Equivalent' },
+    { value: 'ne-local-other', label: 'Local Pastor — Other' },
+  ],
+};
+
+const STATUS_NAME = {
+  'full-elder':'Full Elder/Deacon', 'associate':'Associate Member',
+  'provisional':'Provisional Elder/Deacon', 'local-pastor':'Local Pastor',
+  'ne-elder':'Elder / Deacon / Provisional Elder-Deacon / Associate Member',
+  'ne-local-mdiv':'Local Pastor (M.Div. or Advanced Course of Study)',
+  'ne-local-cos':'Local Pastor (Course of Study or Equivalent)',
+  'ne-local-other':'Local Pastor (Other)',
+};
+
 const LABELS = {
   abbr: {
     salary:'Salary', housing:'Housing Allowance', arp:'ARP', mcaa:'MCAA Stipend',
-    healthflex:'HealthFlex', compass:'Compass', umpip:'UMPIP', cpp:'CPP',
+    healthflex:'HealthFlex', compass:'Compass', umpip:'UMPIP', cpp:'CPP', umlife:'UMLife',
     total:'Total Cost to Charge',
   },
   full: {
@@ -648,11 +747,31 @@ const LABELS = {
     healthflex:'HealthFlex', compass:'Compass',
     umpip:'United Methodist Personal Investment Plan',
     cpp:'Comprehensive Protection Plan',
+    umlife:'UMLife Options',
     total:'Total Cost to Charge',
   },
 };
 
 let lastResult = null;
+
+function getConference() {
+  return document.querySelector('input[name="conf"]:checked').value;
+}
+
+function populateStatusOptions() {
+  const conf = getConference();
+  const sel = document.getElementById('f-status');
+  sel.innerHTML = STATUS_OPTIONS[conf].map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  onStatusChange();
+}
+
+function onConfChange() {
+  populateStatusOptions();
+  document.getElementById('adv-ny').hidden = getConference() !== 'NY';
+  document.getElementById('adv-ne').hidden = getConference() !== 'NE';
+  onChurchesChange();
+  onSalaryChange();
+}
 
 // ─────────────────────────────────────────
 // INIT
@@ -664,26 +783,29 @@ function markDirty() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  buildSchedTable();
+  populateStatusOptions();
+  buildSchedTableNY();
+  buildNEBaseTable();
+  buildNEBracketTable();
   ['f-salary','f-arp','f-allowance'].forEach(id => fmtCurrency(document.getElementById(id)));
   document.addEventListener('input',  markDirty);
   document.addEventListener('change', markDirty);
 });
 
-function buildSchedTable() {
-  const tbody = document.getElementById('sched-body');
+function buildSchedTableNY() {
+  const tbody = document.getElementById('sched-body-ny');
   for (let i = 0; i < 25; i++) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="yr">${YR_LABELS[i]}</td>`;
     ['local-pastor','provisional','associate','full-elder'].forEach(s => {
       const td = document.createElement('td');
-      const v = SCHEDULE[s][i];
+      const v = SCHEDULE_NY[s][i];
       if (v !== undefined) {
         const inp = document.createElement('input');
         inp.type = 'text';
         inp.inputMode = 'numeric';
         inp.value = '$' + v.toLocaleString('en-US');
-        inp.addEventListener('blur',  () => { fmtCurrency(inp); SCHEDULE[s][i] = parseCurrency(inp); });
+        inp.addEventListener('blur',  () => { fmtCurrency(inp); SCHEDULE_NY[s][i] = parseCurrency(inp); });
         inp.addEventListener('focus', () => unfmtCurrency(inp));
         td.appendChild(inp);
       } else {
@@ -694,6 +816,46 @@ function buildSchedTable() {
     });
     tbody.appendChild(tr);
   }
+}
+
+function buildNEBaseTable() {
+  const tbody = document.getElementById('ne-base-body');
+  STATUS_OPTIONS.NE.forEach(opt => {
+    const tr = document.createElement('tr');
+    const tdLabel = document.createElement('td');
+    tdLabel.textContent = opt.label;
+    const tdInput = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.inputMode = 'numeric';
+    inp.value = '$' + NE_BASE[opt.value].toLocaleString('en-US');
+    inp.addEventListener('blur',  () => { fmtCurrency(inp); NE_BASE[opt.value] = parseCurrency(inp); });
+    inp.addEventListener('focus', () => unfmtCurrency(inp));
+    tdInput.appendChild(inp);
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdInput);
+    tbody.appendChild(tr);
+  });
+}
+
+function buildNEBracketTable() {
+  const tbody = document.getElementById('ne-bracket-body');
+  NE_BRACKETS.forEach((b, i) => {
+    const tr = document.createElement('tr');
+    const tdLabel = document.createElement('td');
+    tdLabel.textContent = b.label;
+    const tdInput = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.inputMode = 'numeric';
+    inp.value = '$' + b.add.toLocaleString('en-US');
+    inp.addEventListener('blur',  () => { fmtCurrency(inp); NE_BRACKETS[i].add = parseCurrency(inp); });
+    inp.addEventListener('focus', () => unfmtCurrency(inp));
+    tdInput.appendChild(inp);
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdInput);
+    tbody.appendChild(tr);
+  });
 }
 
 // ─────────────────────────────────────────
@@ -748,18 +910,24 @@ function clearSalaryWarn() {
 }
 
 function getMinSalary() {
+  const conf   = getConference();
   const status = document.getElementById('f-status').value;
-  const years = parseInt(document.getElementById('f-years').value) || 1;
-  const appt = parseFloat(document.querySelector('input[name="appt"]:checked').value);
-  const sched = SCHEDULE[status];
-  const idx = Math.min(years - 1, sched.length - 1);
-  return sched[Math.max(0, idx)] * appt;
+  const years  = parseInt(document.getElementById('f-years').value) || 1;
+  const appt   = parseFloat(document.querySelector('input[name="appt"]:checked').value);
+  if (conf === 'NY') {
+    const sched = SCHEDULE_NY[status];
+    const idx = Math.min(years - 1, sched.length - 1);
+    return sched[Math.max(0, idx)] * appt;
+  }
+  const base = NE_BASE[status] || 0;
+  return (base + neBracketAdd(years)) * appt;
 }
 
 function onChurchesChange() {
   const n = parseInt(document.getElementById('f-churches').value) || 1;
+  const isNY = getConference() === 'NY';
   document.getElementById('f-share-wrap').hidden = n < 2;
-  document.getElementById('f-mcaa-wrap').hidden = n < 2;
+  document.getElementById('f-mcaa-wrap').hidden = n < 2 || !isNY;
   document.getElementById('f-church-rows').hidden = n < 2;
   if (n >= 2) buildChurchRows();
 }
@@ -831,16 +999,38 @@ function checkPctSum() {
 // SETTINGS
 // ─────────────────────────────────────────
 function getSettings() {
+  const conf = getConference();
+  if (conf === 'NY') {
+    return {
+      conference: 'NY',
+      hf:            parseCurrency(document.getElementById('s-ny-hf'))      || 22200,
+      arpMin:        parseCurrency(document.getElementById('s-ny-arp-min')) || 6400,
+      arpInc:        parseCurrency(document.getElementById('s-ny-arp-inc')) || 1600,
+      mcaaEnabled:   true,
+      mcaa:          parseCurrency(document.getElementById('s-ny-mcaa'))     || 1500,
+      mcaaMax:       parseCurrency(document.getElementById('s-ny-mcaa-max')) || 1500,
+      compass:       (parseFloat(document.getElementById('s-ny-compass').value) || 11) / 100,
+      umpip:         (parseFloat(document.getElementById('s-ny-umpip').value)   || 7)  / 100,
+      cpp:           (parseFloat(document.getElementById('s-ny-cpp').value)     || 3)  / 100,
+      dac:           parseCurrency(document.getElementById('s-ny-dac'))      || 1587,
+      cppCapEnabled: true,
+      umlife:        0,
+    };
+  }
   return {
-    hf:         parseCurrency(document.getElementById('s-hf'))      || 22200,
-    arpMin:     parseCurrency(document.getElementById('s-arp-min')) || 6400,
-    arpInc:     parseCurrency(document.getElementById('s-arp-inc')) || 1600,
-    mcaa:       parseCurrency(document.getElementById('s-mcaa'))    || 1500,
-    mcaaMax:    parseCurrency(document.getElementById('s-mcaa-max'))|| 1500,
-    compass:    (parseFloat(document.getElementById('s-compass').value) || 11) / 100,
-    umpip:      (parseFloat(document.getElementById('s-umpip').value)   || 7)  / 100,
-    cpp:        (parseFloat(document.getElementById('s-cpp').value)     || 3)  / 100,
-    dac:        parseCurrency(document.getElementById('s-dac'))     || 1587,
+    conference: 'NE',
+    hf:            parseCurrency(document.getElementById('s-ne-hf'))      || 22596,
+    arpMin:        parseCurrency(document.getElementById('s-ne-arp-min')) || 3700,
+    arpInc:        null,
+    mcaaEnabled:   false,
+    mcaa:          0,
+    mcaaMax:       0,
+    compass:       (parseFloat(document.getElementById('s-ne-compass').value) || 11) / 100,
+    umpip:         (parseFloat(document.getElementById('s-ne-umpip').value)   || 10) / 100,
+    cpp:           (parseFloat(document.getElementById('s-ne-cpp').value)     || 3)  / 100,
+    dac:           0,
+    cppCapEnabled: false,
+    umlife:        (parseFloat(document.getElementById('s-ne-umlife').value)  || 1)  / 100,
   };
 }
 
@@ -887,10 +1077,12 @@ function calculate() {
   // Total compensation
   const totalComp = housingType === 'parsonage' ? salary * 1.35 : salary + allowance;
 
-  // ARP
-  const arpConfMin  = cfg.arpInc * Math.round(appt / 0.25);
+  // ARP / Reimbursable
+  const arpConfMin  = cfg.conference === 'NY'
+    ? cfg.arpInc * Math.round(appt / 0.25)
+    : cfg.arpMin * appt;
   const arpBase     = arpType === 'custom' ? Math.max(arpCustom, arpConfMin) : arpConfMin;
-  const mcaaTotal   = numChurches >= 3 ? cfg.mcaa + cfg.mcaaMax : numChurches === 2 ? cfg.mcaa : 0;
+  const mcaaTotal   = cfg.mcaaEnabled ? (numChurches >= 3 ? cfg.mcaa + cfg.mcaaMax : numChurches === 2 ? cfg.mcaa : 0) : 0;
   const mcaaToARP   = mcaaTotal > 0 && mcaaType === 'arp'     ? mcaaTotal : 0;
   const mcaaStipend = mcaaTotal > 0 && mcaaType === 'stipend' ? mcaaTotal : 0;
   const arp         = arpBase + mcaaToARP;
@@ -899,23 +1091,38 @@ function calculate() {
   const healthFlex  = (appt >= 0.75 && !retired) ? cfg.hf : 0;
   const retType     = appt >= 1.0 ? 'compass' : 'umpip';
   const retirement  = appt >= 1.0 ? totalComp * cfg.compass : totalComp * cfg.umpip;
-  const cppCap      = cfg.dac * 2;
-  const cpp         = appt >= 1.0 ? Math.min(totalComp * cfg.cpp, cppCap) : 0;
+
+  // Protection plan: CPP (full-time, both conferences) vs UMLife (NE only, ¾ and below) vs none (NY, below full-time)
+  let protType, protAmount, protCap = null;
+  if (cfg.conference === 'NY') {
+    protType = 'cpp';
+    if (appt >= 1.0) {
+      protCap = cfg.dac * 2;
+      protAmount = Math.min(totalComp * cfg.cpp, protCap);
+    } else {
+      protAmount = 0;
+    }
+  } else {
+    if (appt >= 1.0) {
+      protType = 'cpp';
+      protAmount = totalComp * cfg.cpp;
+    } else {
+      protType = 'umlife';
+      protAmount = totalComp * cfg.umlife;
+    }
+  }
 
   // Total
-  const total = salary + allowance + arp + mcaaStipend + healthFlex + retirement + cpp;
+  const total = salary + allowance + arp + mcaaStipend + healthFlex + retirement + protAmount;
 
   // Min salary
-  const sched   = SCHEDULE[status];
-  const idx     = Math.min(years - 1, sched.length - 1);
-  const minFull = sched[Math.max(0, idx)];
-  const minSal  = minFull * appt;
+  const minSal = getMinSalary();
 
   lastResult = {
     pastorName, salary, status, years, appt, retired,
     housingType, allowance,
     arpType, arpCustom, arpConfMin, arpBase, mcaaTotal, mcaaToARP, mcaaStipend, arp,
-    healthFlex, retType, retirement, cpp, cppCap, total, totalComp,
+    healthFlex, retType, retirement, protType, protAmount, protCap, total, totalComp,
     numChurches, churches, shareType, mcaaType,
     minSal, belowMin: salary > 0 && salary < minSal,
     cfg,
@@ -959,7 +1166,7 @@ function renderTable() {
   if (r.mcaaStipend > 0) addRow(L.mcaa, r.mcaaStipend);
   addRow(L.healthflex, r.healthFlex);
   addRow(r.retType === 'compass' ? L.compass : L.umpip, r.retirement);
-  addRow(L.cpp, r.cpp);
+  addRow(r.protType === 'umlife' ? L.umlife : L.cpp, r.protAmount);
   addRow(multi ? 'Total' : L.total, r.total, true);
 
   // Build HTML
@@ -998,7 +1205,6 @@ function renderDetail() {
   const cfg = r.cfg;
   const lines = [];
 
-  const statusName = { 'full-elder':'Full Elder/Deacon','associate':'Associate Member','provisional':'Provisional Elder/Deacon','local-pastor':'Local Pastor' };
   const apptName = { 1:'100%', 0.75:'75%', 0.5:'50%', 0.25:'25%' };
   const increments = Math.round(r.appt / 0.25);
 
@@ -1010,11 +1216,23 @@ function renderDetail() {
   }
 
   // Min salary
-  lines.push(`<p><strong>Minimum Salary Check:</strong> 2026 minimum for ${statusName[r.status]}, year ${r.years}, at ${apptName[r.appt]} appointment = ${fmt(r.minSal)}.${r.belowMin ? ` <em>⚠ Entered salary (${fmt(r.salary)}) is below this minimum.</em>` : ` Entered salary (${fmt(r.salary)}) meets the minimum. ✓`}</p>`);
+  if (r.cfg.conference === 'NY') {
+    lines.push(`<p><strong>Minimum Salary Check:</strong> 2026 minimum for ${STATUS_NAME[r.status]}, year ${r.years}, at ${apptName[r.appt]} appointment = ${fmt(r.minSal)}.${r.belowMin ? ` <em>⚠ Entered salary (${fmt(r.salary)}) is below this minimum.</em>` : ` Entered salary (${fmt(r.salary)}) meets the minimum. ✓`}</p>`);
+  } else {
+    const base = NE_BASE[r.status] || 0;
+    const add  = neBracketAdd(r.years);
+    const addDesc = add > 0 ? `+ ${fmt(add)} service add-on (year ${r.years})` : `+ ${fmt(0)} (no service add-on at year ${r.years})`;
+    lines.push(`<p><strong>Minimum Salary Check:</strong> 2026 minimum for ${STATUS_NAME[r.status]} = ${fmt(base)} base ${addDesc} = ${fmt(base + add)} full-time; × ${apptName[r.appt]} appointment = ${fmt(r.minSal)}. (Part-time proration is not specified in conference guidance — scaled proportionally by appointment fraction.)${r.belowMin ? ` <em>⚠ Entered salary (${fmt(r.salary)}) is below this minimum.</em>` : ` Entered salary (${fmt(r.salary)}) meets the minimum. ✓`}</p>`);
+  }
 
-  // ARP
-  const arpMinDesc = `${fmt(cfg.arpInc)} × ${increments} quarter-time increments = ${fmt(r.arpConfMin)}`;
-  let arpLine = `<strong>ARP:</strong> Conference minimum at ${apptName[r.appt]} is ${fmt(r.arpConfMin)} (${arpMinDesc}).`;
+  // ARP / Reimbursable
+  let arpLine;
+  if (r.cfg.conference === 'NY') {
+    const arpMinDesc = `${fmt(cfg.arpInc)} × ${increments} quarter-time increments = ${fmt(r.arpConfMin)}`;
+    arpLine = `<strong>ARP:</strong> Conference minimum at ${apptName[r.appt]} is ${fmt(r.arpConfMin)} (${arpMinDesc}).`;
+  } else {
+    arpLine = `<strong>ARP (Reimbursable):</strong> Conference minimum at ${apptName[r.appt]} is ${fmt(r.arpConfMin)} (full-time minimum of ${fmt(cfg.arpMin)} × ${apptName[r.appt]} appointment). Part-time proration is not specified in conference guidance — scaled proportionally by appointment fraction.`;
+  }
   if (r.arpType === 'custom') {
     arpLine += ` Custom amount entered: ${fmt(r.arpCustom)}. Using ${fmt(r.arpBase)} (the greater).`;
   }
@@ -1047,13 +1265,21 @@ function renderDetail() {
     lines.push(`<p><strong>UMPIP (defined contribution):</strong> ${(cfg.umpip * 100).toFixed(1)}% × ${fmt(r.totalComp)} total compensation = ${fmt(r.retirement)}. This is the conference minimum; the church may contribute more. Available at 75% and below.</p>`);
   }
 
-  // CPP
-  if (r.appt >= 1.0) {
-    const raw = r.totalComp * cfg.cpp;
-    const capped = raw > r.cppCap;
-    lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(raw)}. Cap = 2026 CPP cost of DAC (${fmt(cfg.dac)}) × 2 = ${fmt(r.cppCap)}.${capped ? ` Cap applied — using ${fmt(r.cpp)}.` : ` Under cap — using ${fmt(r.cpp)}.`} Verify DAC reference rate against current Wespath guidelines.</p>`);
+  // Protection plan: CPP (full-time) / UMLife (NE, part-time) / none (NY, part-time)
+  if (r.cfg.conference === 'NY') {
+    if (r.appt >= 1.0) {
+      const raw = r.totalComp * cfg.cpp;
+      const capped = raw > r.protCap;
+      lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(raw)}. Cap = 2026 CPP cost of DAC (${fmt(cfg.dac)}) × 2 = ${fmt(r.protCap)}.${capped ? ` Cap applied — using ${fmt(r.protAmount)}.` : ` Under cap — using ${fmt(r.protAmount)}.`} Verify DAC reference rate against current Wespath guidelines.</p>`);
+    } else {
+      lines.push(`<p><strong>CPP:</strong> $0.00 — requires 100% appointment.</p>`);
+    }
   } else {
-    lines.push(`<p><strong>CPP:</strong> $0.00 — requires 100% appointment.</p>`);
+    if (r.protType === 'cpp') {
+      lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. Applies at full-time (100%) appointment; no cap noted in conference guidance.</p>`);
+    } else {
+      lines.push(`<p><strong>UMLife Options:</strong> ${(cfg.umlife * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. A CPP alternative for clergy serving ¾ time and below.</p>`);
+    }
   }
 
   // Multi-point breakdown
@@ -1061,6 +1287,7 @@ function renderDetail() {
     const fmtPct = p => { const v = Math.round(p * 10000) / 100; return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2)) + '%'; };
     const shareLine = 'Cost share: ' + r.churches.map(c => `${fmtPct(c.pct)} (${esc(c.name)})`).join(' + ') + ' = 100%';
 
+    const protLabel = r.protType === 'umlife' ? 'UMLife Options' : 'CPP';
     const lineItems = [
       ['Salary', r.salary],
       ...(r.housingType === 'allowance' ? [['Housing Allowance', r.allowance]] : []),
@@ -1068,7 +1295,7 @@ function renderDetail() {
       ...(r.mcaaStipend > 0 ? [['MCAA Stipend', r.mcaaStipend]] : []),
       ['HealthFlex', r.healthFlex],
       [r.retType === 'compass' ? 'Compass' : 'UMPIP', r.retirement],
-      ['CPP', r.cpp],
+      [protLabel, r.protAmount],
       ['Total Cost to Charge', r.total],
     ];
 
@@ -1117,7 +1344,7 @@ async function copyTable() {
   if (r.mcaaStipend > 0) addRow(L.mcaa, r.mcaaStipend);
   addRow(L.healthflex, r.healthFlex);
   addRow(r.retType === 'compass' ? L.compass : L.umpip, r.retirement);
-  addRow(L.cpp, r.cpp);
+  addRow(r.protType === 'umlife' ? L.umlife : L.cpp, r.protAmount);
   addRow(multi ? 'Total' : L.total, r.total, true);
 
   // Header row
