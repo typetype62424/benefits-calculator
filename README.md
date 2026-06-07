@@ -9,6 +9,7 @@ No installation required. No server required. Open `index.html` directly in any 
 ## Features
 
 - **Two-conference support** — a single selector switches all calculations, constants, and minimum-salary logic between the New York (NY) and New England (NE) Annual Conferences
+- **HealthFlex ACH billing toggle (NE only)** — indicates whether the church is billed for HealthFlex by ACH (bank draft), applying the discounted ACH rate instead of the blended rate; defaults to "yes"
 - **Full compensation package calculation** — salary, accountable reimbursement (ARP), HealthFlex, Compass/UMPIP retirement, and CPP (or UMLife Options, where applicable)
 - **Appointment-level aware** — benefit eligibility varies by appointment percentage (100%, 75%, 50%, 25%)
 - **Multi-point charge support** — up to 15 churches with even or custom cost-share splits
@@ -43,6 +44,7 @@ Figures reflect **2026 conference recommendations**. Each conference has its own
 | Item | 2026 Value |
 |---|---|
 | HealthFlex Blended Rate | $22,596 |
+| HealthFlex ACH Rate | $21,468 (discounted rate for churches billed by ACH/bank draft; defaults on — reported as discontinued starting in 2027) |
 | Reimbursable (ARP) Full-Time Minimum | $3,700 |
 | Compass Rate | 11% of Total Compensation |
 | UMPIP Recommended Rate | 10% of Total Compensation |
@@ -68,6 +70,12 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 ---
 
 ## Version
+
+**v0.11.2** — fixed a bug where the below-minimum-salary warning did not appear on first page load (or right after switching conferences), even though the salary field is pre-formatted to "$0", which is below every minimum
+
+**v0.11.1** — fixed a bug where an explicitly entered salary of $0 was not flagged as below the minimum salary (the check was incorrectly skipped for any falsy/zero value, not just an empty field)
+
+**v0.11.0** — added a HealthFlex ACH billing toggle for the NE conference (discounted rate for churches billed by ACH/bank draft, defaults to on; reported as discontinued starting in 2027)
 
 **v0.10.0** — added New England Annual Conference (NE) support alongside New York (NY); single conference selector switches all calculations
 

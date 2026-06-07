@@ -424,6 +424,12 @@
         </div>
       </div>
 
+      <div class="field span2" id="f-ach-wrap" hidden>
+        <span>HealthFlex Billing</span>
+        <label><input type="checkbox" id="f-ach" checked onchange="onSalaryChange()"> Church pays HealthFlex premium by ACH (bank draft)</label>
+        <p class="adv-note" style="margin:4px 0 0">Churches billed by ACH receive a discounted rate. Uncheck if the church does not pay by ACH. <strong>Note:</strong> conference guidance reports the ACH discount is discontinued starting in 2027 — review this setting (and the rates in Advanced Settings) when updating for that year.</p>
+      </div>
+
       <hr class="sep">
       <div class="sec-label">Pastor Information</div>
 
@@ -632,6 +638,10 @@
             <input type="text" inputmode="numeric" id="s-ne-hf" value="$22,596" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
           <div class="sf">
+            <label>HealthFlex ACH Rate ($)</label>
+            <input type="text" inputmode="numeric" id="s-ne-hf-ach" value="$21,468" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+          </div>
+          <div class="sf">
             <label>Reimbursable Full-Time Minimum ($)</label>
             <input type="text" inputmode="numeric" id="s-ne-arp-min" value="$3,700" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
           </div>
@@ -651,7 +661,7 @@
             <label>UMLife Options Rate (%)</label>
             <input type="number" id="s-ne-umlife" value="1" min="0" max="100" step="0.1">
           </div>
-          <p class="adv-note">CPP applies at full-time (100%) appointment with no cap noted in conference guidance. UMLife Options is a CPP alternative for ¾ time and below. Verify rates against current NEAC Benefits Office guidance annually.</p>
+          <p class="adv-note">CPP applies at full-time (100%) appointment with no cap noted in conference guidance. UMLife Options is a CPP alternative for ¾ time and below. The HealthFlex ACH rate is a discount for churches billed by ACH (bank draft); conference guidance reports this discount is discontinued starting in 2027 — remove or zero out the ACH rate and the "pays by ACH" toggle's effect when updating for that year. Verify all rates against current NEAC Benefits Office guidance annually.</p>
 
           <div style="grid-column:1/-1">
             <div class="card-title" style="margin-top:16px;margin-bottom:6px">2026 Minimum Salary — Base &amp; Service Add-On</div>
@@ -676,7 +686,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.10.0 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.11.2 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <script>
@@ -769,6 +779,7 @@ function onConfChange() {
   populateStatusOptions();
   document.getElementById('adv-ny').hidden = getConference() !== 'NY';
   document.getElementById('adv-ne').hidden = getConference() !== 'NE';
+  document.getElementById('f-ach-wrap').hidden = getConference() !== 'NE';
   onChurchesChange();
   onSalaryChange();
 }
@@ -788,6 +799,7 @@ window.addEventListener('DOMContentLoaded', () => {
   buildNEBaseTable();
   buildNEBracketTable();
   ['f-salary','f-arp','f-allowance'].forEach(id => fmtCurrency(document.getElementById(id)));
+  onSalaryChange();
   document.addEventListener('input',  markDirty);
   document.addEventListener('change', markDirty);
 });
@@ -879,10 +891,11 @@ function onApptChange() { onSalaryChange(); }
 function onStatusChange() { onSalaryChange(); }
 
 function onSalaryChange() {
-  const salary = parseCurrency(document.getElementById('f-salary'));
-  if (!salary) { clearSalaryWarn(); return; }
-  const min = getMinSalary();
   const inp = document.getElementById('f-salary');
+  const raw = String(inp.value).replace(/[$,\s]/g, '');
+  if (raw === '') { clearSalaryWarn(); return; }
+  const salary = parseCurrency(inp);
+  const min = getMinSalary();
   const warn = document.getElementById('salary-warn');
   const retired = document.getElementById('f-retired').checked;
   if (salary < min) {
@@ -1020,6 +1033,7 @@ function getSettings() {
   return {
     conference: 'NE',
     hf:            parseCurrency(document.getElementById('s-ne-hf'))      || 22596,
+    hfAch:         parseCurrency(document.getElementById('s-ne-hf-ach'))  || 21468,
     arpMin:        parseCurrency(document.getElementById('s-ne-arp-min')) || 3700,
     arpInc:        null,
     mcaaEnabled:   false,
@@ -1088,7 +1102,9 @@ function calculate() {
   const arp         = arpBase + mcaaToARP;
 
   // Benefits
-  const healthFlex  = (appt >= 0.75 && !retired) ? cfg.hf : 0;
+  const achPaid     = cfg.conference === 'NE' && document.getElementById('f-ach').checked;
+  const hfRate      = achPaid ? cfg.hfAch : cfg.hf;
+  const healthFlex  = (appt >= 0.75 && !retired) ? hfRate : 0;
   const retType     = appt >= 1.0 ? 'compass' : 'umpip';
   const retirement  = appt >= 1.0 ? totalComp * cfg.compass : totalComp * cfg.umpip;
 
@@ -1122,9 +1138,9 @@ function calculate() {
     pastorName, salary, status, years, appt, retired,
     housingType, allowance,
     arpType, arpCustom, arpConfMin, arpBase, mcaaTotal, mcaaToARP, mcaaStipend, arp,
-    healthFlex, retType, retirement, protType, protAmount, protCap, total, totalComp,
+    healthFlex, achPaid, hfRate, retType, retirement, protType, protAmount, protCap, total, totalComp,
     numChurches, churches, shareType, mcaaType,
-    minSal, belowMin: salary > 0 && salary < minSal,
+    minSal, belowMin: salary < minSal,
     cfg,
   };
 
@@ -1251,7 +1267,12 @@ function renderDetail() {
 
   // HealthFlex
   if (r.appt >= 0.75 && !r.retired) {
-    lines.push(`<p><strong>HealthFlex:</strong> ${fmt(r.healthFlex)} — pastor qualifies at ${apptName[r.appt]} appointment (75% or greater threshold met). Based on 2026 HealthFlex Uniform Rate of ${fmt(cfg.hf)}.</p>`);
+    const hfDesc = cfg.conference === 'NE'
+      ? (r.achPaid
+          ? `Based on the 2026 HealthFlex ACH rate of ${fmt(cfg.hfAch)} (church pays by ACH bank draft; this rate is reported as discontinued starting in 2027).`
+          : `Based on the 2026 HealthFlex blended rate of ${fmt(cfg.hf)} (church does not pay by ACH; the lower ACH rate of ${fmt(cfg.hfAch)} would apply if it did, through 2026).`)
+      : `Based on 2026 HealthFlex Uniform Rate of ${fmt(cfg.hf)}.`;
+    lines.push(`<p><strong>HealthFlex:</strong> ${fmt(r.healthFlex)} — pastor qualifies at ${apptName[r.appt]} appointment (75% or greater threshold met). ${hfDesc}</p>`);
   } else if (r.retired) {
     lines.push(`<p><strong>HealthFlex:</strong> $0.00 — not applied for retired pastors in this calculator.</p>`);
   } else {
