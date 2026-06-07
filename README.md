@@ -71,6 +71,8 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 
 ## Version
 
+**v0.11.3** — removed developer/maintainer-facing instructional notes ("review this setting... when updating for that year", "remove or zero out... when updating for that year") from the user-facing HealthFlex ACH toggle and Advanced Settings panel; that guidance belongs in internal documentation, not the live tool
+
 **v0.11.2** — fixed a bug where the below-minimum-salary warning did not appear on first page load (or right after switching conferences), even though the salary field is pre-formatted to "$0", which is below every minimum
 
 **v0.11.1** — fixed a bug where an explicitly entered salary of $0 was not flagged as below the minimum salary (the check was incorrectly skipped for any falsy/zero value, not just an empty field)
