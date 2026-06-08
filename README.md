@@ -16,6 +16,7 @@ No installation required. No server required. Open `index.html` directly in any 
 - **Real-time salary minimum check** — flags salaries below the 2026 conference minimum salary schedule; soft note for retired clergy
 - **Editable constants** — all year-specific rates (HealthFlex, DAC reference, salary schedule, etc.) are updatable via the Advanced Settings panel without editing code
 - **Copyable output** — results table copies to clipboard with formatting preserved for pasting into Word or email
+- **Export to Statement of Understanding (SOU)** — generates a downloadable .docx pre-filled with the calculated compensation figures (salary, ARP, housing allowance, HealthFlex, Compass/UMPIP, CPP, and total cost) and the matching appointment-level checkbox, ready for the District Superintendent to complete and route for signatures
 - **Calculation detail** — toggle a plain-language explanation of how each figure was derived
 - **Label toggle** — switch between abbreviated (ARP, CPP, UMPIP) and full terminology
 
@@ -71,6 +72,16 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 
 ## Version
 
+**v0.12.4** — fixed the underlying cause of the "exported SOU .docx won't open in Word" bug for good (it was a mismatch between the `.docx` file extension and the embedded template's internally-declared OOXML content type — Word validates this and reports a generic "we found a problem with its contents" error when they disagree; no amount of zip-byte-level correctness could fix it). Replaced the embedded template with a proper Word-resaved `.docx` (rather than the original `.dotx`) so the extension and declared content type now agree — this also avoids `.dotx`'s "always opens as a new copy" behavior, so the export now opens directly as the document itself, the right UX for a completed/ready-to-submit SOU. Also filled in several previously-blank SOU fields that weren't being transferred from the calculator: Total Service Time, "A parsonage will be provided" (Yes/No), and Housing Allowance (now shows "n/a" when a parsonage rather than an allowance is selected). Filled-in values now display bold and black instead of the template's gray placeholder styling
+
+**v0.12.3** — fixed the actual remaining cause of "exported SOU .docx won't open in Word" (the file opened fine in LibreOffice, isolating the problem to Word's stricter zip parsing): JSZip always writes "version needed to extract = 1.0" regardless of compression method, which is internally inconsistent for DEFLATE-compressed entries (DEFLATE requires version >= 2.0 per the zip spec) — Word rejects that inconsistency outright while LibreOffice and Python's zipfile ignore the version field. Switched to STORE (uncompressed) packaging, whose version field is consistent with its method; file size returns to ~575KB but opens correctly everywhere
+
+**v0.12.2** — fixed a second cause of the "exported SOU .docx won't open in Word" bug, specific to Firefox: the blob URL was revoked immediately after triggering the download, racing with the browser's asynchronous download read and producing a correctly-sized but corrupted file; the revocation is now delayed
+
+**v0.12.1** — fixed a bug where the exported SOU .docx was abnormally large (~575KB instead of ~100KB) by switching from STORE to DEFLATE compression; *(superseded by v0.12.3 — DEFLATE turned out to trigger a separate JSZip zip-header inconsistency that Word rejects, so the export reverted to STORE; the size regression is an acceptable tradeoff for opening correctly in Word)*
+
+**v0.12.0** — added an "Export to SOU (.docx)" feature: generates a Word document pre-filled from the calculation results using the conference's Statement of Understanding template (`reference/2026-SOU.dotx`), including the matching appointment-level checkbox. Generated entirely in the browser (no server) using a vendored copy of [JSZip](https://stuk.github.io/jszip/) and an embedded, tag-marked copy of the template
+
 **v0.11.3** — removed developer/maintainer-facing instructional notes ("review this setting... when updating for that year", "remove or zero out... when updating for that year") from the user-facing HealthFlex ACH toggle and Advanced Settings panel; that guidance belongs in internal documentation, not the live tool
 
 **v0.11.2** — fixed a bug where the below-minimum-salary warning did not appear on first page load (or right after switching conferences), even though the salary field is pre-formatted to "$0", which is below every minimum
@@ -87,4 +98,5 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 
 Designed by **Simeon Law**  
 Calculator built with Claude Sonnet 4.6 (Anthropic)  
-Banner image created with ChatGPT GPT-5.5 (OpenAI)
+Banner image created with ChatGPT GPT-5.5 (OpenAI)  
+SOU export feature uses a vendored copy of [JSZip](https://stuk.github.io/jszip/) v3.10.1 (dual MIT/GPLv3-licensed)
