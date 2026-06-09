@@ -513,6 +513,11 @@
         <input type="number" id="f-churches" min="1" max="15" value="1" oninput="onChurchesChange()">
       </div>
 
+      <div class="field span2" id="f-single-church-wrap">
+        <label for="f-single-church">Church / Charge Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+        <input type="text" id="f-single-church" placeholder="e.g. First United Methodist Church">
+      </div>
+
       <div class="field" id="f-share-wrap" hidden>
         <span>Cost Share</span>
         <div class="radio-group">
@@ -688,7 +693,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.12.5 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.12.6 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <!-- Vendored: JSZip v3.10.1 (MIT/GPLv3 dual-licensed) - https://stuk.github.io/jszip/ -->
@@ -972,6 +977,7 @@ function getMinSalary() {
 function onChurchesChange() {
   const n = parseInt(document.getElementById('f-churches').value) || 1;
   const isNY = getConference() === 'NY';
+  document.getElementById('f-single-church-wrap').hidden = n >= 2;
   document.getElementById('f-share-wrap').hidden = n < 2;
   document.getElementById('f-mcaa-wrap').hidden = n < 2 || !isNY;
   document.getElementById('f-church-rows').hidden = n < 2;
@@ -1100,6 +1106,7 @@ function calculate() {
   const shareType   = numChurches >= 2 ? document.querySelector('input[name="share"]:checked').value : 'even';
   const mcaaType    = numChurches >= 2 ? document.querySelector('input[name="mcaa"]:checked').value  : 'arp';
   const pastorName  = document.getElementById('f-name').value.trim();
+  const churchName  = numChurches === 1 ? document.getElementById('f-single-church').value.trim() : '';
 
   // Churches
   const churches = [];
@@ -1169,7 +1176,7 @@ function calculate() {
   const minSal = getMinSalary();
 
   lastResult = {
-    pastorName, salary, status, years, appt, retired,
+    pastorName, churchName, salary, status, years, appt, retired,
     housingType, isParsonage, allowance,
     arpType, arpCustom, arpConfMin, arpBase, mcaaTotal, mcaaToARP, mcaaStipend, arp,
     healthFlex, achPaid, hfRate, retType, retirement, protType, protAmount, protCap, total, totalComp,
@@ -1650,6 +1657,7 @@ async function exportSOU() {
         '-1233844848': fmtNE(r.protAmount),                                        // CPP (D&D) or UMLife
         '477195577':   fmtNE(r.total),                                             // Total Cost to Charge
       };
+      if (r.churchName) fieldValues['1481192278'] = r.churchName;                   // Church name
 
       // Section 3e: per-church cost-split tables (HealthFlex and Compass/CPP).
       // Each table has two pre-built data rows. For multi-point charges we fill church
@@ -1705,8 +1713,10 @@ async function exportSOU() {
         '-622228457':  '',                       // healthFlexPT
         '-951863359':  '',                       // umpipPT
         '-698704034':  '',                       // umpipQT
-        '-1480219237': fmt(r.total),             // totalCost
+        // totalCost (-1480219237) is filled via sdtContent replacement below (cost breakdown)
       };
+      if (r.pastorName) fieldValues['-1057159057'] = r.pastorName;  // Name of Pastor
+      if (r.churchName) fieldValues['1481192278']  = r.churchName;  // Name of Church/Charge
 
       if (r.appt >= 1.0) {
         checkboxId = SOU_CHECKBOX_IDS.fullTime;
@@ -1836,6 +1846,66 @@ async function exportSOU() {
         '</w:tr>'
       ).join('');
       xml = xml.slice(0, cpInsertAt) + cpRows + xml.slice(cpInsertAt);
+    }
+
+    // NY-specific: fill "Additional notes" field (857553454) with a cost breakdown the DS
+    // can edit. Single-point: addition expression. Multi-point: cost-allocation-by-church.
+    if (conf === 'NY') {
+      const fmtPct = p => {
+        const v = p * 100;
+        return (v === Math.round(v) ? String(Math.round(v)) : v.toFixed(2)) + '%';
+      };
+      const noteLines = [];
+      if (r.numChurches >= 2) {
+        const ch = r.churches;
+        noteLines.push('Cost share: ' +
+          ch.map(c => fmtPct(c.pct) + ' (' + c.name + ')').join(' + ') + ' = 100%');
+        const items = [['Salary', r.salary]];
+        if (r.housingType === 'allowance' && r.allowance > 0) items.push(['Housing Allowance', r.allowance]);
+        if (r.arp > 0) items.push(['ARP', r.arp]);
+        if (r.mcaaStipend > 0) items.push(['MCAA Stipend', r.mcaaStipend]);
+        if (r.healthFlex > 0) items.push(['HealthFlex', r.healthFlex]);
+        if (r.retirement > 0) items.push([r.retType === 'compass' ? 'Compass' : 'UMPIP', r.retirement]);
+        if (r.protAmount > 0) items.push([r.protType === 'cpp' ? 'CPP' : 'UMLife Options', r.protAmount]);
+        items.push(['Total', r.total]);
+        for (const [label, amount] of items) {
+          noteLines.push(label + ': ' +
+            ch.map(c => fmt(amount * c.pct) + ' (' + c.name + ')').join(' + ') +
+            ' = ' + fmt(amount));
+        }
+      } else {
+        const parts = [fmt(r.salary) + ' (Salary)'];
+        if (r.housingType === 'allowance' && r.allowance > 0) parts.push(fmt(r.allowance) + ' (Housing Allowance)');
+        if (r.arp > 0) parts.push(fmt(r.arp) + ' (ARP)');
+        if (r.mcaaStipend > 0) parts.push(fmt(r.mcaaStipend) + ' (MCAA Stipend)');
+        if (r.healthFlex > 0) parts.push(fmt(r.healthFlex) + ' (HealthFlex)');
+        if (r.retirement > 0) parts.push(fmt(r.retirement) + ' (' + (r.retType === 'compass' ? 'Compass' : 'UMPIP') + ')');
+        if (r.protAmount > 0) parts.push(fmt(r.protAmount) + ' (CPP)');
+        noteLines.push(parts.join(' + ') + ' = ' + fmt(r.total));
+      }
+
+      const NOTES_RPR = '<w:rPr><w:b/><w:color w:val="000000"/><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorHAnsi"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>';
+      const isMulti = r.numChurches >= 2;
+      const notesRunContent = noteLines.map((line, i) => {
+        // Every line gets a leading <w:br/>; for multi-point, blank line before Salary (i=1)
+        // and before Total (last), so the cost-share block and the total stand apart visually.
+        let br = '<w:br/>';
+        if (isMulti && (i === 1 || i === noteLines.length - 1)) br = '<w:br/><w:br/>';
+        return br + '<w:t xml:space="preserve">' + esc(line) + '</w:t>';
+      }).join('');
+      const notesReplacement = '<w:sdtContent><w:r>' + NOTES_RPR + notesRunContent + '</w:r></w:sdtContent>';
+
+      const totalCostFieldIdx = xml.indexOf('<w:id w:val="-1480219237"/>');
+      if (totalCostFieldIdx >= 0) {
+        const sdtStart = xml.lastIndexOf('<w:sdt>', totalCostFieldIdx);
+        const sdtEnd   = xml.indexOf('</w:sdt>', totalCostFieldIdx) + '</w:sdt>'.length;
+        let sdtChunk   = xml.slice(sdtStart, sdtEnd);
+        sdtChunk = sdtChunk.replace('<w:showingPlcHdr/>', '');
+        const scStart  = sdtChunk.indexOf('<w:sdtContent>');
+        const scEnd    = sdtChunk.indexOf('</w:sdtContent>') + '</w:sdtContent>'.length;
+        sdtChunk = sdtChunk.slice(0, scStart) + notesReplacement + sdtChunk.slice(scEnd);
+        xml = xml.slice(0, sdtStart) + sdtChunk + xml.slice(sdtEnd);
+      }
     }
 
     // Check the matching appointment-level checkbox: flip both the w14:checked state
