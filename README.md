@@ -16,7 +16,7 @@ No installation required. No server required. Open `index.html` directly in any 
 - **Real-time salary minimum check** — flags salaries below the 2026 conference minimum salary schedule; soft note for retired clergy
 - **Editable constants** — all year-specific rates (HealthFlex, DAC reference, salary schedule, etc.) are updatable via the Advanced Settings panel without editing code
 - **Copyable output** — results table copies to clipboard with formatting preserved for pasting into Word or email
-- **Export to Statement of Understanding (SOU)** — generates a downloadable .docx pre-filled with the calculated compensation figures (salary, ARP, housing allowance, HealthFlex, Compass/UMPIP, CPP, and total cost) and the matching appointment-level checkbox, ready for the District Superintendent to complete and route for signatures
+- **Export to Statement of Understanding (SOU)** — generates a downloadable .docx pre-filled with the calculated compensation figures (salary, ARP, housing allowance, HealthFlex, Compass/UMPIP, CPP, and total cost), the matching appointment-level checkbox, and the clergy/laity status code; ready for the District Superintendent to complete and route for signatures
 - **Calculation detail** — toggle a plain-language explanation of how each figure was derived
 - **Label toggle** — switch between abbreviated (ARP, CPP, UMPIP) and full terminology
 
@@ -71,6 +71,10 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 ---
 
 ## Version
+
+**v0.12.7** — expanded the Clergy / Laity Status dropdown with all 34 UMC status codes (from the conference codes reference), sorted by category and labeled with their 2–3 letter codes in parentheses. Sorted core statuses (FE › FD › PE › PD › AM › FL) appear at the top of both conference lists; NY additionally groups PL and SL immediately after FL. NE local pastor sub-categories (M.Div./COS/Other) now show combined codes (FL/PL/SL/OL) since any of those four statuses may hold that appointment. Added STATUS_MIN_KEY mappings for all newly added statuses with salary minimums; statuses with no minimum (retired, laity, n/a) silently suppress the below-minimum warning. SOU export now auto-fills the pastor type / clergy status dropdown in both the NY ("Pastor type:") and NE ("Clergy Status/Conference Relationship") templates from the selected status, with conference-specific option mappings; NE local pastor sub-categories are left blank for the DS to specify (FL/PL/SL/OL). Fixed a typo in the NY SOU template: "Provisonal Elder" corrected to "Provisional Elder" in the Word dropdown list
+
+**v0.12.6** — improved SOU export for both conferences: NY now fills the Pastor Name and Church/Charge Name fields; the Total Cost field is replaced with a plain-text cost breakdown (single-point: addition expression; multi-point: cost-share percentages per church followed by per-item per-church amounts), rendered at 12pt. Both NY and NE exports fill the Church/Charge Name field. Added an optional Church / Charge Name input for single-point charges (hidden when two or more churches are entered)
 
 **v0.12.5** — added multi-point charge support to the NE SOU export: for 2-church charges, fills the per-church rows in the HealthFlex percentage-split table and the Compass/CPP per-church amount table; for 3+ churches, inserts additional rows into both tables so all churches are listed. Also fixed several NE-specific substitution bugs: dollar fields no longer double up the `$` sign (the NE template already has a literal `$` preceding each dollar field); church names and amounts now land in the correct content controls (the NE template uses different placeholder strings — `Enter text` / `Enter amount` — from the NY template, causing field values to shift into the wrong cells until the regex was corrected); and the housing field correctly shows `0` when a parsonage is provided instead of `n/a` (which produced `$n/a` in the exported document)
 
