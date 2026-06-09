@@ -458,10 +458,6 @@
         </div>
       </div>
 
-      <div class="field">
-        <span>Retired?</span>
-        <label><input type="checkbox" id="f-retired" onchange="onSalaryChange()"> Pastor is retired</label>
-      </div>
 
       <hr class="sep">
       <div class="sec-label">Cash Salary</div>
@@ -769,6 +765,7 @@ const STATUS_OPTIONS = {
     { value: 'local-pastor',       label: 'Full-time Local Pastor (FL)' },
     { value: 'pl',  label: 'Part-time Local Pastor (PL)' },
     { value: 'sl',  label: 'Student Local Pastor (SL)' },
+    { separator: true },
     // additional statuses — active, on salary schedule:
     { value: 'oa',  label: 'Associate Member of Other Annual Conference (OA)' },
     { value: 'od',  label: 'Deacon of Other Annual Conference (OD)' },
@@ -814,6 +811,7 @@ const STATUS_OPTIONS = {
     { value: 'ne-local-mdiv',         label: 'Local Pastor — M.Div. or Advanced Course of Study (FL/PL/SL/OL)' },
     { value: 'ne-local-cos',          label: 'Local Pastor — Course of Study or Equivalent (FL/PL/SL/OL)' },
     { value: 'ne-local-other',        label: 'Local Pastor — Other (FL/PL/SL/OL)' },
+    { separator: true },
     // additional statuses — active, on salary schedule:
     { value: 'oa',  label: 'Associate Member of Other Annual Conference (OA)' },
     { value: 'od',  label: 'Deacon of Other Annual Conference (OD)' },
@@ -860,6 +858,7 @@ const STATUS_MIN_KEY = {
     'provisional-deacon': 'provisional',
     'associate':          'associate',
     'local-pastor':       'local-pastor',
+    'af':  'full-elder',
     'oa':  'associate',
     'od':  'full-elder',  'oe':  'full-elder',  'ofd': 'full-elder',
     'ofe': 'full-elder',  'of':  'full-elder',  'om':  'full-elder',
@@ -875,6 +874,7 @@ const STATUS_MIN_KEY = {
     'ne-local-mdiv':        'ne-local-mdiv',
     'ne-local-cos':         'ne-local-cos',
     'ne-local-other':       'ne-local-other',
+    'af':  'ne-elder',
     'oa':  'ne-elder',
     'od':  'ne-elder',      'oe':  'ne-elder',      'ofd': 'ne-elder',
     'ofe': 'ne-elder',      'of':  'ne-elder',      'om':  'ne-elder',
@@ -927,6 +927,18 @@ const STATUS_NAME = {
   'rl': 'Retired Local Pastor',
   'rp': 'Retired Provisional Member',
 };
+
+// All three groups are ineligible for conference benefits (HealthFlex, Compass/UMPIP, CPP/UMLife).
+const RETIRED_CLERGY = new Set([
+  'flr','omr','or','ord','ore','plr','ra','rd','re','rl','rp',
+]);
+const RETIRED_LAITY = new Set([
+  'dr','rdc','rhm',
+]);
+const ACTIVE_LAITY = new Set([
+  'dc','dm','hm','lm','sy',
+]);
+const NO_BENEFITS = new Set([...RETIRED_CLERGY, ...RETIRED_LAITY, ...ACTIVE_LAITY]);
 
 // Maps status values to the NY SOU "Pastor type:" dropdown option string.
 // Only statuses with a clear, unambiguous match are included; others are left blank.
@@ -1007,7 +1019,11 @@ function getConference() {
 function populateStatusOptions() {
   const conf = getConference();
   const sel = document.getElementById('f-status');
-  sel.innerHTML = STATUS_OPTIONS[conf].map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  sel.innerHTML = STATUS_OPTIONS[conf].map(o =>
+    o.separator
+      ? `<option value="" disabled>────────────────────────</option>`
+      : `<option value="${o.value}">${o.label}</option>`
+  ).join('');
   onStatusChange();
 }
 
@@ -1133,7 +1149,7 @@ function onSalaryChange() {
   const salary = parseCurrency(inp);
   const min = getMinSalary();
   const warn = document.getElementById('salary-warn');
-  const retired = document.getElementById('f-retired').checked;
+  const retired = NO_BENEFITS.has(document.getElementById('f-status').value);
   if (salary < min) {
     if (retired) {
       inp.classList.remove('below-min');
@@ -1297,7 +1313,7 @@ function calculate() {
   const status      = document.getElementById('f-status').value;
   const years       = parseInt(document.getElementById('f-years').value)        || 1;
   const appt        = parseFloat(document.querySelector('input[name="appt"]:checked').value);
-  const retired     = document.getElementById('f-retired').checked;
+  const retired     = NO_BENEFITS.has(status);
   const housingType = document.querySelector('input[name="housing"]:checked').value;
   const allowance   = housingType === 'allowance' ? parseCurrency(document.getElementById('f-allowance')) : 0;
   const arpType     = document.querySelector('input[name="arp-type"]:checked').value;
@@ -1347,25 +1363,30 @@ function calculate() {
   const hfRate      = achPaid ? cfg.hfAch : cfg.hf;
   const healthFlex  = (appt >= 0.75 && !retired) ? hfRate : 0;
   const retType     = appt >= 1.0 ? 'compass' : 'umpip';
-  const retirement  = appt >= 1.0 ? totalComp * cfg.compass : totalComp * cfg.umpip;
+  const retirement  = (!retired && appt >= 1.0) ? totalComp * cfg.compass
+                    : (!retired)                 ? totalComp * cfg.umpip
+                    : 0;
 
   // Protection plan: CPP (full-time, both conferences) vs UMLife (NE only, ¾ and below) vs none (NY, below full-time)
   let protType, protAmount, protCap = null;
   if (cfg.conference === 'NY') {
     protType = 'cpp';
-    if (appt >= 1.0) {
+    if (!retired && appt >= 1.0) {
       protCap = cfg.dac * 2;
       protAmount = Math.min(totalComp * cfg.cpp, protCap);
     } else {
       protAmount = 0;
     }
   } else {
-    if (appt >= 1.0) {
+    if (!retired && appt >= 1.0) {
       protType = 'cpp';
       protAmount = totalComp * cfg.cpp;
-    } else {
+    } else if (!retired) {
       protType = 'umlife';
       protAmount = totalComp * cfg.umlife;
+    } else {
+      protType = 'cpp';
+      protAmount = 0;
     }
   }
 
@@ -1515,7 +1536,7 @@ function renderDetail() {
       : `Based on 2026 HealthFlex Uniform Rate of ${fmt(cfg.hf)}.`;
     lines.push(`<p><strong>HealthFlex:</strong> ${fmt(r.healthFlex)} — pastor qualifies at ${apptName[r.appt]} appointment (75% or greater threshold met). ${hfDesc}</p>`);
   } else if (r.retired) {
-    lines.push(`<p><strong>HealthFlex:</strong> $0.00 — not applied for retired pastors in this calculator.</p>`);
+    lines.push(`<p><strong>HealthFlex:</strong> $0.00 — not applicable for retired clergy, retired laity, or active laity.</p>`);
   } else {
     lines.push(`<p><strong>HealthFlex:</strong> $0.00 — requires 75% or greater appointment. Pastor is at ${apptName[r.appt]}.</p>`);
   }
