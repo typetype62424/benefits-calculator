@@ -2105,18 +2105,17 @@ async function exportSOU() {
       xml = xml.slice(0, cpInsertAt) + cpRows + xml.slice(cpInsertAt);
     }
 
-    // NE-specific: replace the "Additional Appointment Compensation Package notes" paragraph
-    // (field -210956635, inline in a <w:p>) with a Word table of the compensation package.
-    if (conf === 'NE') {
+    // NE multi-point only: insert compensation package table into section #4.
+    // For single-point charges, section #4 is left as-is (label + fill-in field).
+    if (conf === 'NE' && r.numChurches >= 2) {
       const TRPR  = '<w:rPr><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorHAnsi"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>';
       const THRPR = '<w:rPr><w:b/><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorHAnsi"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>';
-      const isMultiNE = r.numChurches >= 2;
-      const chNE = r.churches || [];
+      const chNE = r.churches;
 
-      // Column widths in dxa. Total usable width ~9360.
-      const LABEL_W = isMultiNE ? 3000 : 6500;
-      const AMT_W   = isMultiNE ? Math.floor(6360 / (1 + chNE.length)) : 2860;
-      const colWidths = [LABEL_W, ...Array(isMultiNE ? 1 + chNE.length : 1).fill(AMT_W)];
+      // Column widths: Label | Entire Charge | Church 1 | Church 2 | ...
+      const LABEL_W = 3000;
+      const AMT_W   = Math.floor(6360 / (1 + chNE.length));
+      const colWidths = [LABEL_W, ...Array(1 + chNE.length).fill(AMT_W)];
 
       const BORDER =
         '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
@@ -2133,10 +2132,8 @@ async function exportSOU() {
       // Header row
       let tblRows = '<w:tr>' +
         tcell(colWidths[0], 'Line Item', THRPR) +
-        (isMultiNE
-          ? tcell(colWidths[1], 'Entire Charge', THRPR) +
-            chNE.map((c, i) => tcell(colWidths[2 + i], c.name, THRPR)).join('')
-          : tcell(colWidths[1], 'Amount', THRPR)) +
+        tcell(colWidths[1], 'Entire Charge', THRPR) +
+        chNE.map((c, i) => tcell(colWidths[2 + i], c.name, THRPR)).join('') +
         '</w:tr>';
 
       // Data rows
@@ -2152,10 +2149,8 @@ async function exportSOU() {
         const rpr = idx === tableItems.length - 1 ? THRPR : TRPR;
         tblRows += '<w:tr>' +
           tcell(colWidths[0], label, rpr) +
-          (isMultiNE
-            ? tcell(colWidths[1], fmt(amount), rpr) +
-              chNE.map((c, i) => tcell(colWidths[2 + i], fmt(amount * c.pct), rpr)).join('')
-            : tcell(colWidths[1], fmt(amount), rpr)) +
+          tcell(colWidths[1], fmt(amount), rpr) +
+          chNE.map((c, i) => tcell(colWidths[2 + i], fmt(amount * c.pct), rpr)).join('') +
           '</w:tr>';
       });
 
@@ -2166,13 +2161,21 @@ async function exportSOU() {
         tblRows +
         '</w:tbl>';
 
-      // Replace the notes paragraph AND the following page-break paragraph (the one
-      // between section #4 and section #5 in the template) with just the table.
-      const notesIdIdx = xml.indexOf('<w:id w:val="-210956635"/>');
+      // Find the notes paragraph (contains the fill-in SDT -210956635).
+      // Strip the fill-in SDT, keeping the label text, then append the table.
+      // Also consume the following page-break paragraph and replace with a page break
+      // before the restored label so the table starts on its own page.
+      const notesIdIdx    = xml.indexOf('<w:id w:val="-210956635"/>');
       const notesParaStart = xml.lastIndexOf('<w:p ', notesIdIdx);
+      const outerSdtStart  = xml.lastIndexOf('<w:sdt>', notesIdIdx);
       const notesParaEnd   = xml.indexOf('</w:p>', notesIdIdx) + '</w:p>'.length;
       const afterParaEnd   = xml.indexOf('</w:p>', notesParaEnd) + '</w:p>'.length;
-      xml = xml.slice(0, notesParaStart) + fullTable + xml.slice(afterParaEnd);
+
+      // Reconstruct the label paragraph without the fill-in SDT
+      const labelPara = xml.slice(notesParaStart, outerSdtStart) + '</w:p>';
+      const PAGE_BREAK = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+
+      xml = xml.slice(0, notesParaStart) + PAGE_BREAK + labelPara + fullTable + xml.slice(afterParaEnd);
     }
 
     // NY-specific: fill "Additional notes" field (857553454) with a cost breakdown the DS
