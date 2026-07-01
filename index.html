@@ -693,7 +693,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.12.8 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.12.9 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <!-- Vendored: JSZip v3.10.1 (MIT/GPLv3 dual-licensed) - https://stuk.github.io/jszip/ -->
@@ -1371,9 +1371,13 @@ function calculate() {
   const hfRate      = achPaid ? cfg.hfAch : cfg.hf;
   const healthFlex  = (appt >= 0.75 && !retired) ? hfRate : 0;
   const compassThreshold = cfg.conference === 'NE' ? 0.5 : 1.0;
-  const retType     = appt >= compassThreshold ? 'compass' : 'umpip';
-  const retirement  = (!retired && appt >= compassThreshold) ? totalComp * cfg.compass
-                    : (!retired)                              ? totalComp * cfg.umpip
+  // NE: appointed retired clergy are still billed Compass (11%) regardless of appointment level.
+  // NY: retired clergy are not billed for retirement. Source: verbal only — see open-questions.md item 5.
+  const neRetiredAppt = cfg.conference === 'NE' && retired;
+  const retType     = (neRetiredAppt || appt >= compassThreshold) ? 'compass' : 'umpip';
+  const retirement  = neRetiredAppt                              ? totalComp * cfg.compass
+                    : (!retired && appt >= compassThreshold)     ? totalComp * cfg.compass
+                    : (!retired)                                 ? totalComp * cfg.umpip
                     : 0;
 
   // Protection plan: NY — CPP at 100% only (capped); NE — CPP at 75%–100%, UMLife at 50%, none at 25%
@@ -1557,7 +1561,8 @@ function renderDetail() {
   // Retirement
   if (r.retType === 'compass') {
     const compassNote = cfg.conference === 'NE'
-      ? 'Available at 50%-time and above.'
+      ? (r.retired ? 'Applies to appointed retired clergy in NE regardless of appointment level.'
+                   : 'Available at 50%-time and above.')
       : 'Available at 100% appointment. New for 2026.';
     lines.push(`<p><strong>Compass (defined benefit):</strong> ${(cfg.compass * 100).toFixed(1)}% × ${fmt(r.totalComp)} total compensation = ${fmt(r.retirement)}. ${compassNote}</p>`);
   } else {
@@ -1899,6 +1904,7 @@ async function exportSOU() {
         '-1233844848': fmtNE(r.protAmount),                                        // CPP (D&D) or UMLife
         '477195577':   fmtNE(r.total),                                             // Total Cost to Charge
       };
+      if (r.pastorName) fieldValues['1902168265'] = r.pastorName;                   // Pastor name (1a)
       if (r.churchName) fieldValues['1481192278'] = r.churchName;                   // Church name
 
       // Section 3e: per-church cost-split tables (HealthFlex and Compass/CPP).
@@ -1915,12 +1921,13 @@ async function exportSOU() {
         fieldValues['-351805986'] = pct0;                   // row 1 HealthFlex %
         fieldValues['1495927117'] = ch[1].name;             // row 2 church name
         fieldValues['-1621297496'] = pct1;                  // row 2 HealthFlex % (inner of nested pair)
-        // Compass/CPP table — church name and dollar amount (template has leading "$")
+        // Compass & CPP/UMLife table — church name and combined dollar amount (template has leading "$")
+        const compassCpp = r.retirement + r.protAmount;
         fieldValues['1192729059'] = ch[0].name;             // row 1 church name
-        fieldValues['1854836058'] = fmtNE(r.retirement * ch[0].pct); // row 1 Compass amount
+        fieldValues['1854836058'] = fmtNE(compassCpp * ch[0].pct); // row 1 amount
         fieldValues['-1203550883'] = ch[1].name;            // row 2 church name
-        fieldValues['1838410963'] = fmtNE(r.retirement * ch[1].pct); // row 2 Compass amount (inner of nested pair)
-        fieldValues['1000923711'] = fmtNE(r.retirement);   // Compass total (template has leading "$")
+        fieldValues['1838410963'] = fmtNE(compassCpp * ch[1].pct); // row 2 amount (inner of nested pair)
+        fieldValues['1000923711'] = fmtNE(compassCpp);     // total (template has leading "$")
       }
 
       const HOUSING_LABEL_NE = {
@@ -1928,8 +1935,11 @@ async function exportSOU() {
         'parsonage-other': 'Parsonage provided at another church',
         'allowance':       'Housing Allowance',
       };
+      // 2065213605 = "Appointment time at this church" (single-point, field 1j)
+      // -1510206044 = "Appointment time at the Cooperative Parish" (multi-point, field 1r)
+      const apptTimeId = r.numChurches > 1 ? '-1510206044' : '2065213605';
       dropdownValues = {
-        '2065213605':  SERVICE_TIME_LABEL[r.appt],               // total service time
+        [apptTimeId]:  SERVICE_TIME_LABEL[r.appt],
         '439729117':   HOUSING_LABEL_NE[r.housingType] || 'Neither', // housing arrangement
       };
       const neClergy = NE_CLERGY_STATUS[r.status];
@@ -2084,10 +2094,11 @@ async function exportSOU() {
       // Re-search after the HealthFlex insertion shifted indices.
       const cpTotalIdIdx  = xml.indexOf('<w:id w:val="1000923711"/>');
       const cpInsertAt    = xml.lastIndexOf('<w:tr', cpTotalIdIdx);
+      const compassCppTotal = r.retirement + r.protAmount;
       const cpRows = extra.map(ch =>
         '<w:tr>' +
         cell(1919, run(ch.name)) +
-        cell(5010, run('$'), run(fmtNE(r.retirement * ch.pct))) +
+        cell(5010, run('$'), run(fmtNE(compassCppTotal * ch.pct))) +
         cell(2335) +   // Conf bills — DS fills
         '</w:tr>'
       ).join('');
