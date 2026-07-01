@@ -2105,6 +2105,74 @@ async function exportSOU() {
       xml = xml.slice(0, cpInsertAt) + cpRows + xml.slice(cpInsertAt);
     }
 
+    // NE-specific: replace the "Additional Appointment Compensation Package notes" paragraph
+    // (field -210956635, inline in a <w:p>) with a Word table of the compensation package.
+    if (conf === 'NE') {
+      const TRPR  = '<w:rPr><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorHAnsi"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>';
+      const THRPR = '<w:rPr><w:b/><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorHAnsi"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>';
+      const isMultiNE = r.numChurches >= 2;
+      const chNE = r.churches || [];
+
+      // Column widths in dxa. Total usable width ~9360.
+      const LABEL_W = isMultiNE ? 3000 : 6500;
+      const AMT_W   = isMultiNE ? Math.floor(6360 / (1 + chNE.length)) : 2860;
+      const colWidths = [LABEL_W, ...Array(isMultiNE ? 1 + chNE.length : 1).fill(AMT_W)];
+
+      const BORDER =
+        '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+        '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+        '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+        '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+        '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>';
+
+      const tcell = (w, text, rpr) =>
+        `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>` +
+        `<w:p><w:r>${rpr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p></w:tc>`;
+
+      // Header row
+      let tblRows = '<w:tr>' +
+        tcell(colWidths[0], 'Line Item', THRPR) +
+        (isMultiNE
+          ? tcell(colWidths[1], 'Entire Charge', THRPR) +
+            chNE.map((c, i) => tcell(colWidths[2 + i], c.name, THRPR)).join('')
+          : tcell(colWidths[1], 'Amount', THRPR)) +
+        '</w:tr>';
+
+      // Data rows
+      const tableItems = [['Salary', r.salary]];
+      if (r.housingType === 'allowance' && r.allowance > 0) tableItems.push(['Housing Allowance', r.allowance]);
+      if (r.arp > 0) tableItems.push(['Accountable Reimbursement (ARP)', r.arp]);
+      if (r.healthFlex > 0) tableItems.push(['HealthFlex', r.healthFlex]);
+      if (r.retirement > 0) tableItems.push([r.retType === 'compass' ? 'Compass' : 'UMPIP', r.retirement]);
+      if (r.protAmount > 0) tableItems.push([r.protType === 'umlife' ? 'UMLife Options' : 'CPP', r.protAmount]);
+      tableItems.push(['Total Cost to Charge', r.total]);
+
+      tableItems.forEach(([label, amount], idx) => {
+        const rpr = idx === tableItems.length - 1 ? THRPR : TRPR;
+        tblRows += '<w:tr>' +
+          tcell(colWidths[0], label, rpr) +
+          (isMultiNE
+            ? tcell(colWidths[1], fmt(amount), rpr) +
+              chNE.map((c, i) => tcell(colWidths[2 + i], fmt(amount * c.pct), rpr)).join('')
+            : tcell(colWidths[1], fmt(amount), rpr)) +
+          '</w:tr>';
+      });
+
+      const fullTable =
+        '<w:tbl>' +
+        `<w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblBorders>${BORDER}</w:tblBorders></w:tblPr>` +
+        `<w:tblGrid>${colWidths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>` +
+        tblRows +
+        '</w:tbl>';
+
+      // Replace the entire <w:p> containing the notes field with the table
+      const notesIdIdx = xml.indexOf('<w:id w:val="-210956635"/>');
+      const notesParaStart = xml.lastIndexOf('<w:p ', notesIdIdx);
+      const notesParaEnd   = xml.indexOf('</w:p>', notesIdIdx) + '</w:p>'.length;
+      xml = xml.slice(0, notesParaStart) + fullTable + xml.slice(notesParaEnd);
+    }
+
     // NY-specific: fill "Additional notes" field (857553454) with a cost breakdown the DS
     // can edit. Single-point: addition expression. Multi-point: cost-allocation-by-church.
     if (conf === 'NY') {
