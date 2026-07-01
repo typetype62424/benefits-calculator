@@ -2166,13 +2166,13 @@ async function exportSOU() {
         tblRows +
         '</w:tbl>';
 
-      // Replace the notes paragraph with a page break + the table, so the table always
-      // starts on its own page and cannot overlap section #5 regardless of table height.
-      const PAGE_BREAK_PARA = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+      // Replace the notes paragraph AND the following page-break paragraph (the one
+      // between section #4 and section #5 in the template) with just the table.
       const notesIdIdx = xml.indexOf('<w:id w:val="-210956635"/>');
       const notesParaStart = xml.lastIndexOf('<w:p ', notesIdIdx);
       const notesParaEnd   = xml.indexOf('</w:p>', notesIdIdx) + '</w:p>'.length;
-      xml = xml.slice(0, notesParaStart) + PAGE_BREAK_PARA + fullTable + xml.slice(notesParaEnd);
+      const afterParaEnd   = xml.indexOf('</w:p>', notesParaEnd) + '</w:p>'.length;
+      xml = xml.slice(0, notesParaStart) + fullTable + xml.slice(afterParaEnd);
     }
 
     // NY-specific: fill "Additional notes" field (857553454) with a cost breakdown the DS
