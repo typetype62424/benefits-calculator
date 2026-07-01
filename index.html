@@ -1372,7 +1372,8 @@ function calculate() {
   const healthFlex  = (appt >= 0.75 && !retired) ? hfRate : 0;
   const compassThreshold = cfg.conference === 'NE' ? 0.5 : 1.0;
   // NE: appointed retired clergy are still billed Compass (11%) regardless of appointment level.
-  // NY: retired clergy are not billed for retirement. Source: verbal only — see open-questions.md item 5.
+  // The church funds the Compass program; the retired pastor does not personally receive the benefit.
+  // NY: retired clergy are not billed for retirement. Source: confirmed by on-the-ground NE source — see open-questions.md item 5.
   const neRetiredAppt = cfg.conference === 'NE' && retired;
   const retType     = (neRetiredAppt || appt >= compassThreshold) ? 'compass' : 'umpip';
   const retirement  = neRetiredAppt                              ? totalComp * cfg.compass
@@ -1561,7 +1562,7 @@ function renderDetail() {
   // Retirement
   if (r.retType === 'compass') {
     const compassNote = cfg.conference === 'NE'
-      ? (r.retired ? 'Applies to appointed retired clergy in NE regardless of appointment level.'
+      ? (r.retired ? 'Applies to appointed retired clergy in NE regardless of appointment level. The church is billed to fund the Compass program; the retired pastor does not personally receive the benefit.'
                    : 'Available at 50%-time and above.')
       : 'Available at 100% appointment. New for 2026.';
     lines.push(`<p><strong>Compass (defined benefit):</strong> ${(cfg.compass * 100).toFixed(1)}% × ${fmt(r.totalComp)} total compensation = ${fmt(r.retirement)}. ${compassNote}</p>`);
