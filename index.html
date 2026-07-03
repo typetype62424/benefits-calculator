@@ -570,6 +570,15 @@
       <div class="card">
         <div class="card-title">Editable Constants — Update annually</div>
 
+        <!-- Shared national constant (both conferences) -->
+        <div class="settings-grid">
+          <div class="sf">
+            <label>Denominational Average Compensation — DAC ($)</label>
+            <input type="text" inputmode="numeric" id="s-dac" value="$80,249" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+          </div>
+        </div>
+        <p class="adv-note">National Wespath figure, shared by both conferences — but each conference uses it differently. In NE, used for the CPP 25%-of-DAC earnings-eligibility test for clergy of other Methodist denominations (status OM), per neumc.org/benefits. NY has no confirmed source applying this test, so the value is stored here but not currently used in NY's CPP calculation. Set to the prior year's finalized DAC (there is a one-year reporting lag — the current year's DAC isn't known until it closes), so the 2026 value above is the 2025 DAC ($80,249, per NEAC pastoral compensation guide 2026, page 1). Distinct from NY's "CPP Cost of DAC" field below, which is a different, much smaller reference rate used only for the CPP cap.</p>
+
         <!-- NY -->
         <div id="adv-ny">
         <div class="settings-grid">
@@ -693,7 +702,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.12.9 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.12.10 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <!-- Vendored: JSZip v3.10.1 (MIT/GPLv3 dual-licensed) - https://stuk.github.io/jszip/ -->
@@ -934,6 +943,12 @@ const RETIRED_CLERGY = new Set([
 ]);
 const RETIRED_LAITY = new Set([
   'dr','rdc','rhm',
+]);
+// NE only: Local Pastor statuses, per neumc.org/benefits (2026) CPP/UMLife eligibility split —
+// Local Pastors are CPP-eligible only at 100%-time (not 75%) and are not UMLife-eligible at all.
+// Elder/Deacon/Associate Member/other-denomination clergy are CPP-eligible at 75%-100% and UMLife-eligible at 50%.
+const NE_LOCAL_PASTOR_STATUSES = new Set([
+  'ne-local-mdiv','ne-local-cos','ne-local-other',
 ]);
 const ACTIVE_LAITY = new Set([
   'dc','dm','hm','lm','sy',
@@ -1268,9 +1283,13 @@ function checkPctSum() {
 // ─────────────────────────────────────────
 function getSettings() {
   const conf = getConference();
+  // National figure, shared by both conferences — CPP 25%-of-DAC earnings test for OM (clergy of other
+  // Methodist denominations). Prior-year DAC (one-year reporting lag), per open-questions.md item 6.
+  const dacNational = parseCurrency(document.getElementById('s-dac')) || 80249;
   if (conf === 'NY') {
     return {
       conference: 'NY',
+      dacNational,
       hf:            parseCurrency(document.getElementById('s-ny-hf'))      || 22200,
       arpMin:        parseCurrency(document.getElementById('s-ny-arp-min')) || 6400,
       arpInc:        parseCurrency(document.getElementById('s-ny-arp-inc')) || 1600,
@@ -1283,10 +1302,12 @@ function getSettings() {
       dac:           parseCurrency(document.getElementById('s-ny-dac'))      || 1587,
       cppCapEnabled: true,
       umlife:        0,
+      parsonageFloor: 10000, // Wespath national rule; never triggers at NY's FT-only salary levels
     };
   }
   return {
     conference: 'NE',
+    dacNational,
     hf:            parseCurrency(document.getElementById('s-ne-hf'))      || 22596,
     hfAch:         parseCurrency(document.getElementById('s-ne-hf-ach'))  || 21468,
     arpMin:        parseCurrency(document.getElementById('s-ne-arp-min')) || 3700,
@@ -1346,14 +1367,11 @@ function calculate() {
   }
 
   // Total compensation
-  // NE: if 35% of salary < parsonage floor, use the floor instead (verbally confirmed NE practice).
-  // Set Parsonage Minimum Value to $0 in Advanced Settings to disable.
+  // Wespath national rule: parsonage value = max(salary × 0.35, $10,000 floor).
+  // Only surfaces in NE because NY limits Compass to FT clergy whose salaries always exceed $28,571.
+  // NE exposes the floor as an editable constant; NY hardcodes it (set to $0 to disable for NE).
   const isParsonage = housingType === 'parsonage' || housingType === 'parsonage-other';
-  const parsonageValue = isParsonage
-    ? (cfg.conference === 'NE'
-        ? Math.max(salary * 0.35, cfg.parsonageFloor)
-        : salary * 0.35)
-    : 0;
+  const parsonageValue = isParsonage ? Math.max(salary * 0.35, cfg.parsonageFloor) : 0;
   const totalComp = isParsonage ? salary + parsonageValue : salary + allowance;
 
   // ARP / Reimbursable
@@ -1381,8 +1399,19 @@ function calculate() {
                     : (!retired)                                 ? totalComp * cfg.umpip
                     : 0;
 
-  // Protection plan: NY — CPP at 100% only (capped); NE — CPP at 75%–100%, UMLife at 50%, none at 25%
+  // Protection plan: NY — CPP at 100% only (capped); NE — CPP/UMLife eligibility split by clergy status.
+  // NE source: neumc.org/benefits (2026) — CPP: Elder/Deacon/Associate Member/other-denomination clergy at
+  // 75%-100%, Local Pastors at 100% only. UMLife: Elder/Deacon/Associate Member/other-denomination clergy at
+  // 50% only (CPP alternative for those not CPP-eligible); Local Pastors are not UMLife-eligible at any level.
+  // "Clergy of other Methodist denominations" (status OM) additionally requires Plan Compensation >= 25% of
+  // DAC to be CPP-eligible in NE. DAC itself is a national Wespath figure (cfg.dacNational, shared by both
+  // conferences), but each conference uses it differently — this 25%-of-DAC eligibility test is NE-specific
+  // (from neumc.org/benefits, NE's own Adoption Agreement) and is NOT applied to NY absent an NY-specific
+  // source confirming the same provision. See open-questions.md item 7.
   let protType, protAmount, protCap = null;
+  const isLocalPastor = cfg.conference === 'NE' && NE_LOCAL_PASTOR_STATUSES.has(status);
+  const isOtherMethodist = status === 'om';
+  const meetsDacFloor = cfg.conference !== 'NE' || !isOtherMethodist || totalComp >= cfg.dacNational * 0.25;
   if (cfg.conference === 'NY') {
     protType = 'cpp';
     if (!retired && appt >= 1.0) {
@@ -1392,10 +1421,11 @@ function calculate() {
       protAmount = 0;
     }
   } else {
-    if (!retired && appt >= 0.75) {
+    const timeQualifiesCpp = appt >= 1.0 || (appt >= 0.75 && !isLocalPastor);
+    if (!retired && timeQualifiesCpp && meetsDacFloor) {
       protType = 'cpp';
       protAmount = totalComp * cfg.cpp;
-    } else if (!retired && appt >= 0.5) {
+    } else if (!retired && appt === 0.5 && !isLocalPastor) {
       protType = 'umlife';
       protAmount = totalComp * cfg.umlife;
     } else {
@@ -1502,8 +1532,8 @@ function renderDetail() {
 
   // Total Compensation
   if (r.isParsonage) {
-    if (cfg.conference === 'NE' && cfg.parsonageFloor > 0 && r.salary * 0.35 < cfg.parsonageFloor) {
-      lines.push(`<p><strong>Total Compensation:</strong> ${fmt(r.salary)} salary + ${fmt(cfg.parsonageFloor)} parsonage value = ${fmt(r.totalComp)} — parsonage provided; 35% of salary (${fmt(r.salary * 0.35)}) is below the ${fmt(cfg.parsonageFloor)} NE parsonage minimum, so the minimum is used instead.</p>`);
+    if (cfg.parsonageFloor > 0 && r.salary * 0.35 < cfg.parsonageFloor) {
+      lines.push(`<p><strong>Total Compensation:</strong> ${fmt(r.salary)} salary + ${fmt(cfg.parsonageFloor)} parsonage value = ${fmt(r.totalComp)} — parsonage provided; 35% of salary (${fmt(r.salary * 0.35)}) is below the ${fmt(cfg.parsonageFloor)} Wespath parsonage minimum, so the minimum is used instead.</p>`);
     } else {
       lines.push(`<p><strong>Total Compensation:</strong> ${fmt(r.salary)} × 1.35 = ${fmt(r.totalComp)} — parsonage provided, so 35% of salary is added as the housing component per conference guidelines.</p>`);
     }
@@ -1574,6 +1604,9 @@ function renderDetail() {
   }
 
   // Protection plan: CPP (full-time) / UMLife (NE, part-time) / none (NY, part-time)
+  const isOtherMethodist = r.status === 'om';
+  const dacFloorAmt = cfg.dacNational * 0.25;
+  const meetsDacFloor = r.cfg.conference !== 'NE' || !isOtherMethodist || r.totalComp >= dacFloorAmt;
   if (r.cfg.conference === 'NY') {
     if (r.appt >= 1.0) {
       const raw = r.totalComp * cfg.cpp;
@@ -1583,10 +1616,20 @@ function renderDetail() {
       lines.push(`<p><strong>CPP:</strong> $0.00 — requires 100% appointment.</p>`);
     }
   } else {
-    if (r.protType === 'cpp') {
-      lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. Applies at 75%–100% appointment; no cap noted in conference guidance.</p>`);
+    const isLocalPastor = NE_LOCAL_PASTOR_STATUSES.has(r.status);
+    if (r.protType === 'cpp' && r.protAmount > 0) {
+      const cppNote = isLocalPastor
+        ? 'Local Pastors are CPP-eligible only at 100%-time appointment.'
+        : isOtherMethodist
+          ? `Clergy of other Methodist denominations (OM) are CPP-eligible at 75%–100% appointment, subject to Plan Compensation ≥ 25% of the national DAC (${fmt(cfg.dacNational)} × 25% = ${fmt(dacFloorAmt)}) — met here.`
+          : 'Elder/Deacon/Associate Member clergy are CPP-eligible at 75%–100% appointment.';
+      lines.push(`<p><strong>CPP:</strong> ${(cfg.cpp * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. ${cppNote} No cap noted in conference guidance.</p>`);
     } else if (r.protType === 'umlife') {
-      lines.push(`<p><strong>UMLife Options:</strong> ${(cfg.umlife * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. CPP alternative for clergy serving at 50%-time.</p>`);
+      lines.push(`<p><strong>UMLife Options:</strong> ${(cfg.umlife * 100).toFixed(1)}% × ${fmt(r.totalComp)} = ${fmt(r.protAmount)}. CPP alternative for Elder/Deacon/Associate Member clergy serving at 50%-time who are not CPP-eligible; Local Pastors are not UMLife-eligible.</p>`);
+    } else if (isOtherMethodist && !meetsDacFloor) {
+      lines.push(`<p><strong>CPP:</strong> $0.00 — clergy of other Methodist denominations (OM) require Plan Compensation ≥ 25% of the national DAC (${fmt(cfg.dacNational)} × 25% = ${fmt(dacFloorAmt)}) to be CPP-eligible at 75%–100%; total compensation of ${fmt(r.totalComp)} falls short. Not UMLife-eligible outside 50%-time.</p>`);
+    } else if (isLocalPastor) {
+      lines.push(`<p><strong>CPP:</strong> $0.00 — Local Pastors are only CPP-eligible at 100%-time and are not UMLife-eligible at any appointment level (per neumc.org/benefits, 2026).</p>`);
     } else {
       lines.push(`<p><strong>CPP:</strong> $0.00 — not applicable at 25%-time (CPP requires 75%–100%; UMLife Options requires 50%).</p>`);
     }
@@ -1893,10 +1936,11 @@ async function exportSOU() {
       // Two places in the NE template carry the same figures: the "Appointment
       // Compensation Package" summary near the top, and the "Total Cost to Charge"
       // table near the bottom -- both are filled with the same computed values.
+      // Section 2 (fields 2a-2d: Salary, Reimbursable expenses, Housing, Housing Exclusion) is filled
+      // out BY HAND by the DS in NE practice (per the template's own footnote) -- the calculator never
+      // auto-fills it, for either single- or multi-point charges. The "Total Cost to Charge" summary
+      // (Part 2) is filled regardless, since it is a true total, not a per-appointment figure.
       fieldValues = {
-        '-1105424435': fmtNE(r.salary),                                            // salary (compensation package)
-        '-17173539':   fmtNE(r.arp),                                               // reimbursable expenses / ARP (compensation package)
-        '-365066221':  r.housingType === 'allowance' ? fmtNE(r.allowance) : '0',   // housing allowance in lieu of parsonage (template has leading "$"; use 0 not empty when not applicable)
         '1064920982':  fmtNE(r.salary),                                            // salary (cost-to-charge summary)
         '-1159453766': fmtNE(r.arp),                                               // reimbursable expenses (cost-to-charge summary)
         '100771834':   r.housingType === 'allowance' ? fmtNE(r.allowance) : '0',   // housing allowance if no parsonage (cost-to-charge summary; template's leading "$" makes "n/a" read oddly, so use "0")
@@ -1922,27 +1966,31 @@ async function exportSOU() {
         fieldValues['-351805986'] = pct0;                   // row 1 HealthFlex %
         fieldValues['1495927117'] = ch[1].name;             // row 2 church name
         fieldValues['-1621297496'] = pct1;                  // row 2 HealthFlex % (inner of nested pair)
-        // Compass & CPP/UMLife table — church name and combined dollar amount (template has leading "$")
-        const compassCpp = r.retirement + r.protAmount;
+        // Compass & CPP/UMLife table — per NE practice, this table shows each church's
+        // % share of the combined Compass + CPP/UMLife billing (not dollar amounts), with
+        // the total row reading 100%. The template's dollar fields each have a literal "$"
+        // run immediately before them (see DOLLAR_STRIP_IDS below, stripped after the
+        // generic substitution loop so "$60%" doesn't render instead of "60%").
         fieldValues['1192729059'] = ch[0].name;             // row 1 church name
-        fieldValues['1854836058'] = fmtNE(compassCpp * ch[0].pct); // row 1 amount
+        fieldValues['1854836058'] = pct0 + '%';             // row 1 % share
         fieldValues['-1203550883'] = ch[1].name;            // row 2 church name
-        fieldValues['1838410963'] = fmtNE(compassCpp * ch[1].pct); // row 2 amount (inner of nested pair)
-        fieldValues['1000923711'] = fmtNE(compassCpp);     // total (template has leading "$")
+        fieldValues['1838410963'] = pct1 + '%';             // row 2 % share (inner of nested pair)
+        fieldValues['1000923711'] = '100%';                 // total — always 100%
       }
 
-      const HOUSING_LABEL_NE = {
-        'parsonage':       'Parsonage provided (even if pastor lives someplace else)',
-        'parsonage-other': 'Parsonage provided at another church',
-        'allowance':       'Housing Allowance',
-      };
-      // 2065213605 = "Appointment time at this church" (single-point, field 1j)
-      // -1510206044 = "Appointment time at the Cooperative Parish" (multi-point, field 1r)
-      const apptTimeId = r.numChurches > 1 ? '-1510206044' : '2065213605';
+      // Field letters below are the template's actual Word auto-numbered list letters
+      // (list "1" uses a lowerLetter sub-list starting at 5 = "e", confirmed by decoding
+      // reference/2026-NE-SOU-1.docx's word/numbering.xml — NOT a-from-1 as originally assumed).
+      // 2065213605 = "Appointment time at this church" (field 1j) — single-point only.
+      // -1510206044 = "Appointment time at the Cooperative Parish" (field 1k) — a distinct
+      // Cooperative Parish structure the calculator doesn't model; always left untouched (blank).
+      // 1735277909 = "(TOTAL appointment time at ALL churches or Cooperative Parish as of
+      // effective date)" (field 1r) — this is the correct field for multi-point charges.
+      const apptTimeId = r.numChurches > 1 ? '1735277909' : '2065213605';
       dropdownValues = {
         [apptTimeId]:  SERVICE_TIME_LABEL[r.appt],
-        '439729117':   HOUSING_LABEL_NE[r.housingType] || 'Neither', // housing arrangement
       };
+      // 439729117 (housing arrangement, field 2c) is filled out by hand -- see the section 2 note above.
       const neClergy = NE_CLERGY_STATUS[r.status];
       if (neClergy) dropdownValues['1096831661'] = neClergy;     // Clergy Status/Conference Relationship
 
@@ -2044,6 +2092,22 @@ async function exportSOU() {
         pre + (fieldValues[id] ? deStylePlaceholderRun(mid) : mid) + esc(fieldValues[id]) + close);
     });
 
+    // The Compass & CPP/UMLife table's two pre-built amount fields (and its total) are each
+    // preceded by a literal "$" run in the template. Since NE practice fills this table with
+    // % shares rather than dollar amounts, strip that literal "$" so the result reads "60%"
+    // rather than "$60%". Anchored by searching backward from each field's own w:id, bounded
+    // to the immediately preceding run so an unrelated "$" elsewhere can't be matched instead.
+    if (conf === 'NE' && r.numChurches >= 2) {
+      ['1854836058', '1838410963', '1000923711'].forEach(id => {
+        const idIdx = xml.indexOf('<w:id w:val="' + id + '"/>');
+        if (idIdx === -1) return;
+        const dollarTag = '<w:t>$</w:t>';
+        const dollarIdx = xml.lastIndexOf(dollarTag, idIdx);
+        if (dollarIdx === -1 || idIdx - dollarIdx > 1000) return;
+        xml = xml.slice(0, dollarIdx) + '<w:t></w:t>' + xml.slice(dollarIdx + dollarTag.length);
+      });
+    }
+
     // Dropdown content controls (<w:dropDownList>): in the pristine template these still
     // show "Choose an item." (NY) or "Choose an item"/"Choose an item." (NE, inconsistently)
     // under <w:showingPlcHdr/>, just like the text fields above -- the same
@@ -2090,16 +2154,17 @@ async function exportSOU() {
       ).join('');
       xml = xml.slice(0, hfInsertAt) + hfRows + xml.slice(hfInsertAt);
 
-      // Compass/CPP table (3 columns: name 1919, amount 5010, Conf bills 2335).
+      // Compass/CPP table (3 columns: name 1919, % share 5010, Conf bills 2335).
+      // Shows each church's % share of the combined Compass + CPP/UMLife billing, per NE
+      // practice (see the 2-church fieldValues above for the same rule).
       // Insert before the total row (anchored on 1000923711).
       // Re-search after the HealthFlex insertion shifted indices.
       const cpTotalIdIdx  = xml.indexOf('<w:id w:val="1000923711"/>');
       const cpInsertAt    = xml.lastIndexOf('<w:tr', cpTotalIdIdx);
-      const compassCppTotal = r.retirement + r.protAmount;
       const cpRows = extra.map(ch =>
         '<w:tr>' +
         cell(1919, run(ch.name)) +
-        cell(5010, run('$'), run(fmtNE(compassCppTotal * ch.pct))) +
+        cell(5010, run(String(Math.round(ch.pct * 100))), run('%')) +
         cell(2335) +   // Conf bills — DS fills
         '</w:tr>'
       ).join('');
@@ -2155,9 +2220,13 @@ async function exportSOU() {
           '</w:tr>';
       });
 
+      // Indent the table to align with section #4's label text. The "4." list item (numId=15,
+      // level 0) uses <w:ind w:left="720" w:hanging="360"/> — the number sits at 360 twips and
+      // the label text wraps at 720 twips, so <w:tblInd w:w="720"> lines the table up with the
+      // text, not the "4." marker. Confirmed against reference/2026-NE-SOU-1.docx's numbering.xml.
       const fullTable =
         '<w:tbl>' +
-        `<w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblBorders>${BORDER}</w:tblBorders></w:tblPr>` +
+        `<w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblInd w:w="720" w:type="dxa"/><w:tblBorders>${BORDER}</w:tblBorders></w:tblPr>` +
         `<w:tblGrid>${colWidths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>` +
         tblRows +
         '</w:tbl>';
