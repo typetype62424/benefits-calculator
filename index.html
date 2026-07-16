@@ -147,6 +147,85 @@
     }
     .btn-calc:hover { background: #2d5282; }
 
+    /* Mode toggle (segmented control) */
+    .seg {
+      display: inline-flex;
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+    .seg button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    .seg button.on { background: #1e3a5f; color: white; }
+
+    /* Reverse-mode result headline */
+    .reverse-headline {
+      background: #f0fdf4;
+      border: 1px solid #dcfce7;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+    .reverse-headline .rh-lab {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #166534;
+      font-weight: 700;
+    }
+    .reverse-headline .rh-val {
+      font-size: 26px;
+      font-weight: 700;
+      color: #14532d;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .reverse-headline .rh-sub { font-size: 12.5px; color: #3f6212; margin-top: 3px; }
+
+    .infeasible {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #92400e;
+      line-height: 1.55;
+    }
+
+    /* Reverse mode, flat-amount split: budget field becomes a read-only live sum */
+    #f-salary[readonly] {
+      background: #f1f5f9;
+      color: #475569;
+      border-style: dashed;
+      font-weight: 600;
+    }
+    .church-row input[type="text"].amt { flex: 0 0 130px; width: 130px; }
+    .sumline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding: 9px 12px;
+      background: #f0fdf4;
+      border: 1px solid #dcfce7;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .sumline .lab { color: #166534; font-weight: 600; }
+    .sumline .val { font-size: 16px; font-weight: 700; color: #14532d; font-variant-numeric: tabular-nums; }
+
     /* Results */
     .results-bar {
       display: flex;
@@ -415,6 +494,15 @@
   <div class="card">
     <div class="form-grid">
 
+      <div class="sec-label">What do you want to calculate?</div>
+      <div class="field span2">
+        <div class="seg" id="calc-mode-seg">
+          <button type="button" id="mode-cost" class="on" onclick="setCalcMode('cost')">Total cost from a salary</button>
+          <button type="button" id="mode-salary" onclick="setCalcMode('salary')">Max salary from a budget</button>
+        </div>
+      </div>
+
+      <hr class="sep">
       <div class="sec-label">Conference</div>
 
       <div class="field span2">
@@ -460,12 +548,13 @@
 
 
       <hr class="sep">
-      <div class="sec-label">Cash Salary</div>
+      <div class="sec-label" id="salary-sec-label">Cash Salary</div>
 
       <div class="field span2">
-        <label for="f-salary">Amount</label>
+        <label for="f-salary" id="salary-amt-label">Amount</label>
         <input type="text" id="f-salary" inputmode="numeric" oninput="onSalaryChange()" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
         <div class="warn-text" id="salary-warn" hidden></div>
+        <div class="hint" id="budget-hint" style="font-size:12px;color:#94a3b8;margin-top:2px;" hidden>The largest salary whose total cost to the charge stays within this budget will be calculated. Housing, ARP, and all benefits are held as set below.</div>
       </div>
 
       <hr class="sep">
@@ -517,8 +606,9 @@
       <div class="field" id="f-share-wrap" hidden>
         <span>Cost Share</span>
         <div class="radio-group">
-          <label><input type="radio" name="share" value="even" checked onchange="buildChurchRows()"> Even split</label>
-          <label><input type="radio" name="share" value="custom" onchange="buildChurchRows()"> Custom percentages</label>
+          <label><input type="radio" name="share" value="even" checked onchange="onShareChange()"> Even split</label>
+          <label><input type="radio" name="share" value="custom" onchange="onShareChange()"> Custom percentages</label>
+          <label id="share-flat-label" hidden><input type="radio" name="share" value="flat" onchange="onShareChange()"> Flat amount per church</label>
         </div>
       </div>
 
@@ -554,6 +644,8 @@
       <button class="btn-copy" id="export-sou-btn" onclick="exportSOU()">Export to SOU (.docx)</button>
     </div>
 
+    <div class="reverse-headline" id="reverse-headline" hidden></div>
+    <div class="infeasible" id="infeasible-msg" hidden></div>
     <div id="pastor-header"></div>
     <div id="table-wrap"></div>
 
@@ -702,7 +794,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.12.10 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.13.0 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <!-- Vendored: JSZip v3.10.1 (MIT/GPLv3 dual-licensed) - https://stuk.github.io/jszip/ -->
@@ -1026,6 +1118,31 @@ const LABELS = {
 };
 
 let lastResult = null;
+let calcMode = 'cost';   // 'cost' = forward (salary → total); 'salary' = reverse (budget → max salary)
+
+// Switch between forward and reverse modes. Reuses the entire form — only the money
+// field's labels/placeholder and the Calculate button text change; results are cleared.
+function setCalcMode(mode) {
+  calcMode = mode;
+  const reverse = mode === 'salary';
+  document.getElementById('mode-cost').classList.toggle('on', !reverse);
+  document.getElementById('mode-salary').classList.toggle('on', reverse);
+  document.getElementById('salary-sec-label').textContent = reverse ? 'Church Budget' : 'Cash Salary';
+  document.getElementById('salary-amt-label').textContent = reverse ? 'Total Budget for the Charge' : 'Amount';
+  document.getElementById('f-salary').placeholder = reverse ? 'e.g. $95,000' : '';
+  // "Flat amount per church" is reverse-only; leaving reverse mode, fall back to even split.
+  document.getElementById('share-flat-label').hidden = !reverse;
+  if (!reverse) {
+    const flatRadio = document.querySelector('input[name="share"][value="flat"]');
+    if (flatRadio && flatRadio.checked) document.querySelector('input[name="share"][value="even"]').checked = true;
+  }
+  clearSalaryWarn();
+  onChurchesChange();   // rebuild church rows (share may have changed) and refresh the budget field
+  // Clear any prior results and reset the button (the meaning has changed).
+  document.getElementById('results-card').hidden = true;
+  hasCalculated = false;
+  document.querySelector('.btn-calc').textContent = reverse ? 'Find max salary' : 'Calculate';
+}
 
 function getConference() {
   return document.querySelector('input[name="conf"]:checked').value;
@@ -1158,6 +1275,9 @@ function onApptChange() { onSalaryChange(); }
 function onStatusChange() { onSalaryChange(); }
 
 function onSalaryChange() {
+  // In reverse mode the field holds a budget, not a salary, so the minimum-salary
+  // warning doesn't apply (the solved salary's below-minimum status still shows in the results).
+  if (calcMode === 'salary') { clearSalaryWarn(); return; }
   const inp = document.getElementById('f-salary');
   const raw = String(inp.value).replace(/[$,\s]/g, '');
   if (raw === '') { clearSalaryWarn(); return; }
@@ -1189,13 +1309,11 @@ function clearSalaryWarn() {
   document.getElementById('salary-warn').hidden = true;
 }
 
-function getMinSalary() {
-  const conf   = getConference();
-  const status = document.getElementById('f-status').value;
+// Pure minimum-salary calculation — no DOM access, so it can be reused by the
+// forward calc, the reverse (budget → salary) solver, and the real-time warning.
+function computeMinSalary(conf, status, years, appt) {
   const minKey = (STATUS_MIN_KEY[conf] || {})[status];
   if (!minKey) return 0;
-  const years  = parseInt(document.getElementById('f-years').value) || 1;
-  const appt   = parseFloat(document.querySelector('input[name="appt"]:checked').value);
   if (conf === 'NY') {
     const sched = SCHEDULE_NY[minKey];
     const idx = Math.min(years - 1, sched.length - 1);
@@ -1203,6 +1321,15 @@ function getMinSalary() {
   }
   const base = NE_BASE[minKey] || 0;
   return (base + neBracketAdd(years)) * appt;
+}
+
+// DOM-reading wrapper — used by the real-time salary warning (onSalaryChange).
+function getMinSalary() {
+  const conf   = getConference();
+  const status = document.getElementById('f-status').value;
+  const years  = parseInt(document.getElementById('f-years').value) || 1;
+  const appt   = parseFloat(document.querySelector('input[name="appt"]:checked').value);
+  return computeMinSalary(conf, status, years, appt);
 }
 
 function onChurchesChange() {
@@ -1213,33 +1340,81 @@ function onChurchesChange() {
   document.getElementById('f-mcaa-wrap').hidden = n < 2 || !isNY;
   document.getElementById('f-church-rows').hidden = n < 2;
   if (n >= 2) buildChurchRows();
+  refreshBudgetField();
+}
+
+// Cost-share radio changed (even / custom % / flat amount).
+function onShareChange() {
+  buildChurchRows();
+  refreshBudgetField();
+}
+
+// Reverse mode + flat split: the budget field becomes a read-only live sum of the per-church
+// amounts. Otherwise it's an editable salary/budget. Called whenever mode, church count, or
+// cost-share changes.
+function refreshBudgetField() {
+  const reverse = calcMode === 'salary';
+  const n = parseInt(document.getElementById('f-churches').value) || 1;
+  const share = document.querySelector('input[name="share"]:checked')?.value;
+  const flat = reverse && n >= 2 && share === 'flat';
+  const f = document.getElementById('f-salary');
+  const hint = document.getElementById('budget-hint');
+  f.readOnly = flat;
+  if (flat) {
+    updateFlatBudgetSum();
+    hint.textContent = 'Auto-calculated from the per-church amounts below.';
+    hint.hidden = false;
+  } else if (reverse) {
+    hint.textContent = 'The largest salary whose total cost to the charge stays within this budget will be calculated. Housing, ARP, and all benefits are held as set below.';
+    hint.hidden = false;
+  } else {
+    hint.hidden = true;
+  }
+}
+
+// Sum the per-church flat amounts into the read-only budget field and the subtotal line.
+function updateFlatBudgetSum() {
+  const n = parseInt(document.getElementById('f-churches').value) || 1;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const el = document.getElementById(`c-amt-${i}`);
+    if (el) sum += parseCurrency(el);
+  }
+  const disp = '$' + Math.round(sum).toLocaleString('en-US');
+  document.getElementById('f-salary').value = disp;
+  const sv = document.getElementById('flat-sumval');
+  if (sv) sv.textContent = disp;
 }
 
 function buildChurchRows() {
   const n = parseInt(document.getElementById('f-churches').value) || 1;
-  const isCustom = document.querySelector('input[name="share"]:checked').value === 'custom';
+  const share = document.querySelector('input[name="share"]:checked').value;
+  const isCustom = share === 'custom';
+  const isFlat   = share === 'flat';
   const wrap = document.getElementById('f-church-rows');
   wrap.innerHTML = '';
 
   const lbl = document.createElement('div');
   lbl.style.cssText = 'font-size:13px;color:#475569;margin-bottom:8px;';
-  lbl.textContent = isCustom ? 'Church name and percentage:' : 'Church names (optional):';
+  lbl.textContent = isCustom ? 'Church name and percentage:'
+                  : isFlat   ? 'Church name and the amount each church pays:'
+                  :            'Church names (optional):';
   wrap.appendChild(lbl);
 
   for (let i = 0; i < n; i++) {
     const row = document.createElement('div');
     row.className = 'church-row';
 
-    const lbl = document.createElement('span');
-    lbl.className = 'clabel';
-    lbl.textContent = `Church ${i + 1}`;
+    const clabel = document.createElement('span');
+    clabel.className = 'clabel';
+    clabel.textContent = `Church ${i + 1}`;
 
     const nameInp = document.createElement('input');
     nameInp.type = 'text';
     nameInp.id = `c-name-${i}`;
     nameInp.placeholder = 'Name (optional)';
 
-    row.appendChild(lbl);
+    row.appendChild(clabel);
     row.appendChild(nameInp);
 
     if (isCustom) {
@@ -1254,6 +1429,17 @@ function buildChurchRows() {
       pctLbl.textContent = '%';
       row.appendChild(pctInp);
       row.appendChild(pctLbl);
+    } else if (isFlat) {
+      const amtInp = document.createElement('input');
+      amtInp.type = 'text';
+      amtInp.id = `c-amt-${i}`;
+      amtInp.className = 'amt';
+      amtInp.inputMode = 'numeric';
+      amtInp.placeholder = '$0';
+      amtInp.addEventListener('input', updateFlatBudgetSum);
+      amtInp.addEventListener('blur',  () => fmtCurrency(amtInp));
+      amtInp.addEventListener('focus', () => unfmtCurrency(amtInp));
+      row.appendChild(amtInp);
     }
 
     wrap.appendChild(row);
@@ -1264,6 +1450,11 @@ function buildChurchRows() {
     warn.className = 'pct-warn';
     warn.id = 'pct-warn';
     wrap.appendChild(warn);
+  } else if (isFlat) {
+    const sumline = document.createElement('div');
+    sumline.className = 'sumline';
+    sumline.innerHTML = '<span class="lab">Total budget (sum of church amounts)</span><span class="val" id="flat-sumval"></span>';
+    wrap.appendChild(sumline);
   }
 }
 
@@ -1328,14 +1519,14 @@ function getSettings() {
 // ─────────────────────────────────────────
 // CALCULATE
 // ─────────────────────────────────────────
-function calculate() {
-  const cfg = getSettings();
-
-  const salary      = parseCurrency(document.getElementById('f-salary'));
+// Read all user inputs from the DOM into a plain object. No computation and no
+// side effects (no alerts) — validation lives in calculate(). Pairs with
+// computePackage(), which turns these inputs into a full compensation breakdown.
+function readInputs() {
+  let   salary      = parseCurrency(document.getElementById('f-salary'));
   const status      = document.getElementById('f-status').value;
   const years       = parseInt(document.getElementById('f-years').value)        || 1;
   const appt        = parseFloat(document.querySelector('input[name="appt"]:checked').value);
-  const retired     = NO_BENEFITS.has(status);
   const housingType = document.querySelector('input[name="housing"]:checked').value;
   const allowance   = housingType === 'allowance' ? parseCurrency(document.getElementById('f-allowance')) : 0;
   const arpType     = document.querySelector('input[name="arp-type"]:checked').value;
@@ -1345,26 +1536,47 @@ function calculate() {
   const mcaaType    = numChurches >= 2 ? document.querySelector('input[name="mcaa"]:checked').value  : 'arp';
   const pastorName  = document.getElementById('f-name').value.trim();
   const churchName  = numChurches === 1 ? document.getElementById('f-single-church').value.trim() : '';
+  const achChecked  = document.getElementById('f-ach').checked;
 
-  // Churches
   const churches = [];
   if (numChurches >= 2) {
-    for (let i = 0; i < numChurches; i++) {
-      const name = document.getElementById(`c-name-${i}`)?.value.trim() || `Church ${i + 1}`;
-      let pct = 1 / numChurches;
-      if (shareType === 'custom') {
-        pct = (parseFloat(document.getElementById(`c-pct-${i}`)?.value) || 0) / 100;
+    if (shareType === 'flat') {
+      // Reverse mode: each church's dollar amount is entered directly; the budget is their sum,
+      // and each church's share percentage is its amount ÷ the sum.
+      const amts = [];
+      for (let i = 0; i < numChurches; i++) amts.push(parseCurrency(document.getElementById(`c-amt-${i}`)));
+      const sum = amts.reduce((a, b) => a + b, 0);
+      salary = sum;
+      for (let i = 0; i < numChurches; i++) {
+        const name = document.getElementById(`c-name-${i}`)?.value.trim() || `Church ${i + 1}`;
+        const pct = sum > 0 ? amts[i] / sum : 1 / numChurches;
+        churches.push({ name, pct, flatAmount: amts[i] });
       }
-      churches.push({ name, pct });
-    }
-    if (shareType === 'custom') {
-      const total = churches.reduce((s, c) => s + c.pct, 0);
-      if (Math.abs(total - 1) > 0.005) {
-        alert('Percentages must total 100% before calculating.');
-        return;
+    } else {
+      for (let i = 0; i < numChurches; i++) {
+        const name = document.getElementById(`c-name-${i}`)?.value.trim() || `Church ${i + 1}`;
+        let pct = 1 / numChurches;
+        if (shareType === 'custom') {
+          pct = (parseFloat(document.getElementById(`c-pct-${i}`)?.value) || 0) / 100;
+        }
+        churches.push({ name, pct });
       }
     }
   }
+
+  return {
+    salary, status, years, appt, housingType, allowance, arpType, arpCustom,
+    numChurches, shareType, mcaaType, pastorName, churchName, achChecked, churches,
+  };
+}
+
+// Pure compensation-package calculation: given the inputs (from readInputs) and a
+// settings object (from getSettings), return every derived figure. No DOM access,
+// so it can be called repeatedly by the reverse (budget → salary) solver, which
+// varies inp.salary and reads the resulting .total until it hits the target budget.
+function computePackage(inp, cfg) {
+  const { salary, status, appt, housingType, allowance } = inp;
+  const retired = NO_BENEFITS.has(status);
 
   // Total compensation
   // Wespath national rule: parsonage value = max(salary × 0.35, $10,000 floor).
@@ -1378,14 +1590,14 @@ function calculate() {
   const arpConfMin  = cfg.conference === 'NY'
     ? cfg.arpInc * Math.round(appt / 0.25)
     : cfg.arpMin * appt;
-  const arpBase     = arpType === 'custom' ? Math.max(arpCustom, arpConfMin) : arpConfMin;
-  const mcaaTotal   = cfg.mcaaEnabled ? (numChurches >= 3 ? cfg.mcaa + cfg.mcaaMax : numChurches === 2 ? cfg.mcaa : 0) : 0;
-  const mcaaToARP   = mcaaTotal > 0 && mcaaType === 'arp'     ? mcaaTotal : 0;
-  const mcaaStipend = mcaaTotal > 0 && mcaaType === 'stipend' ? mcaaTotal : 0;
+  const arpBase     = inp.arpType === 'custom' ? Math.max(inp.arpCustom, arpConfMin) : arpConfMin;
+  const mcaaTotal   = cfg.mcaaEnabled ? (inp.numChurches >= 3 ? cfg.mcaa + cfg.mcaaMax : inp.numChurches === 2 ? cfg.mcaa : 0) : 0;
+  const mcaaToARP   = mcaaTotal > 0 && inp.mcaaType === 'arp'     ? mcaaTotal : 0;
+  const mcaaStipend = mcaaTotal > 0 && inp.mcaaType === 'stipend' ? mcaaTotal : 0;
   const arp         = arpBase + mcaaToARP;
 
   // Benefits
-  const achPaid     = cfg.conference === 'NE' && document.getElementById('f-ach').checked;
+  const achPaid     = cfg.conference === 'NE' && inp.achChecked;
   const hfRate      = achPaid ? cfg.hfAch : cfg.hf;
   const healthFlex  = (appt >= 0.75 && !retired) ? hfRate : 0;
   const compassThreshold = cfg.conference === 'NE' ? 0.5 : 1.0;
@@ -1434,31 +1646,184 @@ function calculate() {
     }
   }
 
-  // Total
+  // Total cost to the charge
   const total = salary + allowance + arp + mcaaStipend + healthFlex + retirement + protAmount;
 
-  // Min salary
-  const minSal = getMinSalary();
+  const minSal = computeMinSalary(cfg.conference, status, inp.years, appt);
 
-  lastResult = {
-    pastorName, churchName, salary, status, years, appt, retired,
-    housingType, isParsonage, allowance,
-    arpType, arpCustom, arpConfMin, arpBase, mcaaTotal, mcaaToARP, mcaaStipend, arp,
-    healthFlex, achPaid, hfRate, retType, retirement, protType, protAmount, protCap, total, totalComp,
-    numChurches, churches, shareType, mcaaType,
+  return {
+    retired, isParsonage, parsonageValue, totalComp,
+    arpConfMin, arpBase, mcaaTotal, mcaaToARP, mcaaStipend, arp,
+    achPaid, hfRate, healthFlex, retType, retirement,
+    protType, protAmount, protCap, total,
     minSal, belowMin: salary < minSal,
-    cfg,
   };
+}
+
+// Reverse solver: given every input except salary (all held fixed, including any
+// housing allowance), find the maximum salary whose resulting Total Cost to Charge
+// fits within `budget`. Bisects over the pure computePackage() core — total cost is
+// monotonically non-decreasing in salary, so this converges reliably and stays correct
+// through every kink (parsonage floor, NY CPP cap, eligibility thresholds) automatically.
+// Returns either:
+//   { feasible: true,  salary, result }   — solved salary and its full computePackage output
+//   { feasible: false, fixedCost }        — even a $0 salary overshoots (flat costs alone exceed budget)
+function solveSalaryForBudget(inp, cfg, budget) {
+  // Fixed-cost floor: total cost at salary = 0. Since salary only ever adds cost, if the
+  // budget can't even cover this, no salary fits — report the unavoidable minimum.
+  const atZero = computePackage({ ...inp, salary: 0 }, cfg);
+  if (atZero.total > budget) {
+    return { feasible: false, fixedCost: atZero.total };
+  }
+
+  // Bracket the solution: total(0) <= budget < total(budget), since total always includes
+  // salary as a term plus non-negative benefits, so total(budget) > budget. Bisect.
+  let lo = 0, hi = budget;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (computePackage({ ...inp, salary: mid }, cfg).total > budget) hi = mid;
+    else lo = mid;
+  }
+  // lo is the largest salary tested whose total stays within budget (keeps us under, not over).
+  return { feasible: true, salary: lo, result: computePackage({ ...inp, salary: lo }, cfg) };
+}
+
+function calculate() {
+  const cfg = getSettings();
+  const inp = readInputs();
+
+  // Custom cost-share percentages must sum to 100% before calculating. Tolerance is 0.01
+  // percentage point (0.0001 as a fraction) — tight enough to reject a genuine mismatch that
+  // would leave the per-church shares not reconciling to the total, but loose enough to absorb
+  // floating-point noise and clean splits like 33.33/33.33/33.34. Matches the real-time
+  // pct-sum warning (checkPctSum), so if that warning is showing, this blocks.
+  if (inp.numChurches >= 2 && inp.shareType === 'custom') {
+    const totalPct = inp.churches.reduce((s, c) => s + c.pct, 0);
+    if (Math.abs(totalPct - 1) > 0.0001) {
+      alert('Percentages must total 100% before calculating.');
+      return;
+    }
+  }
+
+  let reverse = null;
+  if (calcMode === 'salary') {
+    // Reverse mode: the money field holds the budget. The floor for a *viable* appointment is
+    // the cost at the conference minimum salary (minSal depends on status/years/appointment).
+    // For statuses with no minimum (retired, laity), minSal is 0 and this reduces to the fixed
+    // benefits cost — the cost at a $0 salary. A budget below that floor can't fund the
+    // appointment at (or above) the minimum salary, so we don't report a sub-minimum salary.
+    const budget = inp.salary;
+    const minSal = computeMinSalary(cfg.conference, inp.status, inp.years, inp.appt);
+    const minBudget = computePackage({ ...inp, salary: minSal }, cfg).total;
+    if (budget < minBudget) {
+      const fixedCost = computePackage({ ...inp, salary: 0 }, cfg).total;
+      showInfeasible({ budget, minSal, minBudget, fixedCost,
+                       status: inp.status, years: inp.years, appt: inp.appt });
+      return;
+    }
+    // Budget covers at least the minimum salary → solve for the max salary that fits (>= minSal).
+    const sol = solveSalaryForBudget(inp, cfg, budget);
+    inp.salary = sol.salary;
+    reverse = { budget, maxSalary: sol.salary };
+  }
+
+  hideInfeasible();
+  lastResult = { ...inp, ...computePackage(inp, cfg), cfg, reverse };
 
   renderTable();
   renderDetail();
 
   hasCalculated = true;
-  document.querySelector('.btn-calc').textContent = 'Calculate';
+  document.querySelector('.btn-calc').textContent = calcMode === 'salary' ? 'Find max salary' : 'Calculate';
 
   const rc = document.getElementById('results-card');
   rc.hidden = false;
   rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Reverse mode, budget below the minimum viable floor. Rather than report a sub-minimum
+// (or impossible) salary, explain what budget the appointment actually needs. `info` carries
+// { budget, minSal, minBudget, fixedCost, status, years, appt }.
+function showInfeasible(info) {
+  lastResult = null;   // no valid package — keep Copy/Export from acting on stale data
+  document.querySelector('.results-bar').hidden = true;
+  document.getElementById('reverse-headline').hidden = true;
+  document.getElementById('pastor-header').textContent = '';
+  document.getElementById('table-wrap').innerHTML = '';
+  document.getElementById('detail-btn').hidden = true;
+  document.getElementById('calc-detail').hidden = true;
+
+  const apptPct = ({ 1: '100%', 0.75: '75%', 0.5: '50%', 0.25: '25%' })[info.appt] || `${Math.round(info.appt * 100)}%`;
+  const statusName = STATUS_NAME[info.status] || 'this pastor';
+  let msg;
+  if (info.minSal > 0) {
+    msg = `<strong>A budget of ${fmt(info.budget)} is below what this appointment requires.</strong><br>` +
+      `To pay a ${statusName} (year ${info.years}, ${apptPct} appointment) at the conference minimum salary of ${fmt(info.minSal)}, ` +
+      `the charge needs a total budget of at least <strong>${fmt(info.minBudget)}</strong>.`;
+  } else {
+    msg = `<strong>A budget of ${fmt(info.budget)} can't cover this appointment's fixed benefits cost of ${fmt(info.fixedCost)}.</strong><br>` +
+      `${statusName} has no minimum salary schedule, so the charge needs a budget of at least ${fmt(info.fixedCost)} before any cash salary.`;
+  }
+  const el = document.getElementById('infeasible-msg');
+  el.hidden = false;
+  el.innerHTML = msg;
+
+  hasCalculated = true;
+  document.querySelector('.btn-calc').textContent = 'Find max salary';
+  const rc = document.getElementById('results-card');
+  rc.hidden = false;
+  rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideInfeasible() {
+  document.getElementById('infeasible-msg').hidden = true;
+  document.getElementById('detail-btn').hidden = false;
+  document.querySelector('.results-bar').hidden = false;
+}
+
+// Split a dollar amount across churches by their pct shares, penny-exact: the per-church
+// values sum to the amount to the cent (largest-remainder rounding — any leftover pennies go
+// to the churches with the largest fractional remainders). Used everywhere per-church dollar
+// figures are shown so the columns always reconcile to the line total, on any split.
+function splitByChurch(amount, churches) {
+  const totalCents = Math.round(amount * 100);
+  const rawCents = churches.map(c => amount * c.pct * 100);
+  const cents = rawCents.map(Math.floor);
+  const residual = totalCents - cents.reduce((a, b) => a + b, 0);
+  const order = rawCents
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < residual; k++) cents[order[k % order.length].i] += 1;
+  return cents.map(c => c / 100);
+}
+
+// Attach a penny-exact perChurch[] to each row {label, amount, isTotal}: line items are split
+// via splitByChurch (each row's shares sum to its amount → rows reconcile), and the total row
+// is the column-wise sum of the line items (each church's column sums to its total → columns
+// reconcile). The total row must be added last.
+function assignPerChurch(rows, churches) {
+  const colCents = churches.map(() => 0);
+  rows.forEach(row => {
+    if (row.isTotal) {
+      row.perChurch = colCents.map(c => c / 100);
+    } else {
+      row.perChurch = splitByChurch(row.amount, churches);
+      row.perChurch.forEach((v, ci) => { colCents[ci] += Math.round(v * 100); });
+    }
+  });
+  return rows;
+}
+
+// Same reconciliation for a list of [label, amount] items whose LAST entry is the grand total:
+// returns an array of per-church arrays parallel to items (line items split; total = column sum).
+function splitItemsByChurch(items, churches) {
+  const colCents = churches.map(() => 0);
+  return items.map(([, amount], idx) => {
+    if (idx === items.length - 1) return colCents.map(c => c / 100);
+    const parts = splitByChurch(amount, churches);
+    parts.forEach((v, ci) => { colCents[ci] += Math.round(v * 100); });
+    return parts;
+  });
 }
 
 // ─────────────────────────────────────────
@@ -1470,17 +1835,25 @@ function renderTable() {
   const L = document.getElementById('label-toggle').checked ? LABELS.full : LABELS.abbr;
   const multi = r.numChurches >= 2;
 
+  // Reverse-mode headline: lead with the solved maximum salary above the breakdown.
+  const rh = document.getElementById('reverse-headline');
+  if (r.reverse) {
+    rh.hidden = false;
+    rh.innerHTML =
+      `<div class="rh-lab">Maximum salary</div>` +
+      `<div class="rh-val">${fmt(r.reverse.maxSalary)}</div>` +
+      `<div class="rh-sub">Largest salary whose total cost to the charge stays within the ${fmt(r.reverse.budget)} budget (resulting total: ${fmt(r.total)}).</div>`;
+  } else {
+    rh.hidden = true;
+  }
+
   // Pastor header
   const ph = document.getElementById('pastor-header');
   ph.textContent = r.pastorName ? `Pastor: ${r.pastorName}` : '';
 
   // Build row data
   const rows = [];
-  const addRow = (label, amount, isTotal) => {
-    const entry = { label, amount, isTotal: !!isTotal };
-    if (multi) entry.perChurch = r.churches.map(c => amount * c.pct);
-    rows.push(entry);
-  };
+  const addRow = (label, amount, isTotal) => rows.push({ label, amount, isTotal: !!isTotal });
 
   addRow(L.salary, r.salary);
   if (r.housingType === 'allowance') addRow(L.housing, r.allowance);
@@ -1490,6 +1863,7 @@ function renderTable() {
   addRow(r.retType === 'compass' ? L.compass : L.umpip, r.retirement);
   addRow(r.protType === 'umlife' ? L.umlife : L.cpp, r.protAmount);
   addRow(multi ? 'Total' : L.total, r.total, true);
+  if (multi) assignPerChurch(rows, r.churches);
 
   // Build HTML
   let h = '<table id="output-table"><thead><tr>';
@@ -1652,8 +2026,9 @@ function renderDetail() {
       ['Total Cost to Charge', r.total],
     ];
 
-    const liItems = lineItems.map(([label, amount]) => {
-      const perChurch = r.churches.map(c => `${fmt(amount * c.pct)} (${esc(c.name)})`).join(' + ');
+    const perChurchArr = splitItemsByChurch(lineItems, r.churches);
+    const liItems = lineItems.map(([label, amount], idx) => {
+      const perChurch = r.churches.map((c, i) => `${fmt(perChurchArr[idx][i])} (${esc(c.name)})`).join(' + ');
       return `<li><strong>${label}:</strong> ${perChurch} = ${fmt(amount)}</li>`;
     }).join('');
 
@@ -1699,6 +2074,7 @@ async function copyTable() {
   addRow(r.retType === 'compass' ? L.compass : L.umpip, r.retirement);
   addRow(r.protType === 'umlife' ? L.umlife : L.cpp, r.protAmount);
   addRow(multi ? 'Total' : L.total, r.total, true);
+  if (multi) assignPerChurch(rows, r.churches);
 
   // Header row
   let thead = `<tr><th style="${S.th}">Line Item</th>`;
@@ -1718,7 +2094,7 @@ async function copyTable() {
     tbody += `<tr><td style="${labelStyle}">${row.label}</td>`;
     if (multi) {
       tbody += `<td style="${amtStyle}">${fmt(row.amount)}</td>`;
-      r.churches.forEach(c => { tbody += `<td style="${amtStyle}">${fmt(row.amount * c.pct)}</td>`; });
+      row.perChurch.forEach(v => { tbody += `<td style="${amtStyle}">${fmt(v)}</td>`; });
     } else {
       tbody += `<td style="${amtStyle}">${fmt(row.amount)}</td>`;
     }
@@ -2211,12 +2587,13 @@ async function exportSOU() {
       if (r.protAmount > 0) tableItems.push([r.protType === 'umlife' ? 'UMLife Options' : 'CPP', r.protAmount]);
       tableItems.push(['Total Cost to Charge', r.total]);
 
+      const perChurchArr = splitItemsByChurch(tableItems, chNE);
       tableItems.forEach(([label, amount], idx) => {
         const rpr = idx === tableItems.length - 1 ? THRPR : TRPR;
         tblRows += '<w:tr>' +
           tcell(colWidths[0], label, rpr) +
           tcell(colWidths[1], fmt(amount), rpr) +
-          chNE.map((c, i) => tcell(colWidths[2 + i], fmt(amount * c.pct), rpr)).join('') +
+          chNE.map((c, i) => tcell(colWidths[2 + i], fmt(perChurchArr[idx][i]), rpr)).join('') +
           '</w:tr>';
       });
 
@@ -2268,11 +2645,12 @@ async function exportSOU() {
         if (r.retirement > 0) items.push([r.retType === 'compass' ? 'Compass' : 'UMPIP', r.retirement]);
         if (r.protAmount > 0) items.push([r.protType === 'cpp' ? 'CPP' : 'UMLife Options', r.protAmount]);
         items.push(['Total', r.total]);
-        for (const [label, amount] of items) {
+        const perChurchArr = splitItemsByChurch(items, ch);
+        items.forEach(([label, amount], idx) => {
           noteLines.push(label + ': ' +
-            ch.map(c => fmt(amount * c.pct) + ' (' + c.name + ')').join(' + ') +
+            ch.map((c, i) => fmt(perChurchArr[idx][i]) + ' (' + c.name + ')').join(' + ') +
             ' = ' + fmt(amount));
-        }
+        });
       } else {
         const parts = [fmt(r.salary) + ' (Salary)'];
         if (r.housingType === 'allowance' && r.allowance > 0) parts.push(fmt(r.allowance) + ' (Housing Allowance)');
