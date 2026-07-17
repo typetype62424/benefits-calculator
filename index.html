@@ -1943,7 +1943,7 @@ function renderTable() {
   h += '<th>Line Item</th>';
   if (multi) {
     h += '<th>Entire Charge</th>';
-    r.churches.forEach(c => { h += `<th>${esc(c.name)}</th>`; });
+    r.churches.forEach(c => { h += `<th>${esc(c.name)} (${pctStr(c.pct * 100)}%)</th>`; });
   } else {
     h += '<th>Amount</th>';
   }
@@ -2153,7 +2153,7 @@ async function copyTable() {
   let thead = `<tr><th style="${S.th}">Line Item</th>`;
   if (multi) {
     thead += `<th style="${S.thR}">Entire Charge</th>`;
-    r.churches.forEach(c => { thead += `<th style="${S.thR}">${esc(c.name)}</th>`; });
+    r.churches.forEach(c => { thead += `<th style="${S.thR}">${esc(c.name)} (${pctStr(c.pct * 100)}%)</th>`; });
   } else {
     thead += `<th style="${S.thR}">Amount</th>`;
   }
