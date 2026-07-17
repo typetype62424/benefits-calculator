@@ -2,18 +2,18 @@
 
 A browser-based calculator for computing United Methodist clergy compensation packages. Designed for use by District Superintendents. **In testing and not approved for official use**.
 
-No installation required. No server required. Open `index.html` directly in any browser, or visit the hosted version at [simeonlaw.info/benefits-calculator](https://simeonlaw.info/benefits-calculator).
+No installation required. No server required. Open `index.html` directly in any browser, or visit the hosted version at [simeonlaw.info/calculator](https://www.simeonlaw.info/calculator).
 
 ---
 
 ## Features
 
-- **Two-conference support** — a single selector switches all calculations, constants, and minimum-salary logic between the New York (NY) and New England (NE) Annual Conferences
+- **Two-conference support** — a single selector switches all calculations, constants, and minimum-salary logic between the **NY** and **NE** conferences
 - **HealthFlex ACH billing toggle (NE only)** — indicates whether the church is billed for HealthFlex by ACH (bank draft), applying the discounted ACH rate instead of the blended rate; defaults to "yes"
 - **Full compensation package calculation** — salary, accountable reimbursement (ARP), HealthFlex, Compass/UMPIP retirement, and CPP (or UMLife Options, where applicable)
 - **Two directions** — calculate the **total cost** from a salary (forward), or find the **maximum salary** a given **budget** can support (reverse). A mode toggle at the top of the form switches between them; everything else in the form is shared. In reverse mode, if the budget can't fund at least the conference minimum salary, the tool reports the minimum budget the appointment requires instead of an out-of-range salary.
 - **Appointment-level aware** — benefit eligibility varies by appointment percentage (100%, 75%, 50%, 25%)
-- **Multi-point charge support** — up to 15 churches, split by **even share**, **custom percentages** (must total 100%), or — in reverse/budget mode — a **flat dollar amount per church** (the total budget is summed from the per-church amounts). Per-church figures are penny-exact: every line reconciles across its churches and every church's column reconciles to its total.
+- **Multi-point charge support** — up to 15 churches, divided with a two-tone **Even split / Custom split** toggle shared by both workflows. In reverse/budget mode the split is a **linked % / $ table**: enter percentages or dollar amounts and they stay in sync (editing amounts sets the budget to their sum). Custom percentages must total 100%. Per-church figures are penny-exact — every line reconciles across its churches and every church's column reconciles to its total — and each church's share appears in the results-table column header (e.g. `First UMC (50%)`).
 - **Real-time salary minimum check** — flags salaries below the 2026 conference minimum salary schedule; statuses with no applicable minimum (retired clergy, laity) suppress the warning automatically
 - **Editable constants** — all year-specific rates (HealthFlex, DAC reference, salary schedule, etc.) are updatable via the Advanced Settings panel without editing code
 - **Copyable output** — results table copies to clipboard with formatting preserved for pasting into Word or email
@@ -27,7 +27,7 @@ No installation required. No server required. Open `index.html` directly in any 
 
 Figures reflect **2026 conference recommendations**. Each conference has its own set of editable constants in Advanced Settings.
 
-**NY (New York Annual Conference):**
+**NY conference:**
 
 | Item | 2026 Value |
 |---|---|
@@ -41,7 +41,7 @@ Figures reflect **2026 conference recommendations**. Each conference has its own
 | CPP Rate | 3% of Total Compensation, capped at 2× CPP cost of DAC |
 | CPP DAC Reference Rate | $1,587 |
 
-**NE (New England Annual Conference):**
+**NE conference:**
 
 | Item | 2026 Value |
 |---|---|
@@ -109,7 +109,7 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 
 **v0.11.0** — added a HealthFlex ACH billing toggle for the NE conference (discounted rate for churches billed by ACH/bank draft, defaults to on; reported as discontinued starting in 2027)
 
-**v0.10.0** — added New England Annual Conference (NE) support alongside New York (NY); single conference selector switches all calculations
+**v0.10.0** — added **NE** conference support alongside **NY**; single conference selector switches all calculations
 
 ---
 
