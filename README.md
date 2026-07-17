@@ -116,6 +116,6 @@ To update rates for a new year, click **⚙ Advanced Settings** at the bottom of
 ## Credits
 
 Designed by **Simeon Law**  
-Calculator built with Claude Sonnet 4.6 (Anthropic)  
+Calculator built with Claude Sonnet & Opus (Anthropic)  
 Banner image created with ChatGPT GPT-5.5 (OpenAI)  
 SOU export feature uses a vendored copy of [JSZip](https://stuk.github.io/jszip/) v3.10.1 (dual MIT/GPLv3-licensed)
