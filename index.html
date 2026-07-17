@@ -226,6 +226,35 @@
     .sumline .lab { color: #166534; font-weight: 600; }
     .sumline .val { font-size: 16px; font-weight: 700; color: #14532d; font-variant-numeric: tabular-nums; }
 
+    /* Reverse mode: linked % / $ cost-share table */
+    /* Head field sits beside Number of Churches: label on top, full-width toggle below (like a normal field) */
+    /* Two-tone Even/Custom split toggle (reverse mode) — full column width, height matches the inputs */
+    .seg-toggle { display: flex; width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .seg-toggle .split-seg { flex: 1; padding: 8px 10px; border: none; background: #f8fafc; font-size: 14px; font-weight: 600; color: #475569; cursor: pointer; font-family: inherit; white-space: nowrap; text-align: center; transition: background 0.15s, color 0.15s; }
+    .seg-toggle .split-seg + .split-seg { border-left: 1px solid #cbd5e1; }
+    .seg-toggle .split-seg:hover { background: #e2e8f0; }
+    .seg-toggle .split-seg.on { background: #1e3a5f; color: #fff; }
+    .seg-toggle .split-seg.on:hover { background: #2d5282; }
+    table.linked-split { width: 100%; border-collapse: collapse; }
+    table.linked-split th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; font-weight: 700; text-align: left; padding: 4px 6px; }
+    table.linked-split th.r, table.linked-split td.r { text-align: right; white-space: nowrap; }
+    table.linked-split td { padding: 4px 6px; border-bottom: 1px solid #f1f5f9; }
+    table.linked-split input { padding: 6px 8px; }
+    /* Church column takes all remaining width (auto-layout greedy-column trick) so the name input
+       fills the full form width; the % / amount columns shrink to their fixed inputs. */
+    table.linked-split th:first-child, table.linked-split td:first-child { width: 100%; }
+    table.linked-split td:first-child input { width: 100%; }
+    /* Read-only even-share value (forward even split): fixed 70px box matches the % input, so the
+       Share % column — and thus the name field — is the same width in even and custom modes. */
+    .lk-even-val { display: inline-block; width: 70px; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; }
+    table.linked-split input.lk-pct { width: 70px; text-align: right; padding-right: 20px; }
+    table.linked-split input.lk-amt { width: 120px; text-align: right; }
+    /* % sign sits inside the input, pinned to its right edge */
+    .lk-pct-wrap { position: relative; display: inline-block; }
+    .lk-pct-wrap .lk-suffix { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); margin: 0; pointer-events: none; }
+    .lk-suffix { font-size: 13px; color: #64748b; margin-left: 3px; }
+    table.linked-split tr.lk-tot td { border-top: 2px solid #e2e8f0; border-bottom: none; font-weight: 700; padding-top: 8px; color: #1e3a5f; }
+
     /* Results */
     .results-bar {
       display: flex;
@@ -552,9 +581,40 @@
 
       <div class="field span2">
         <label for="f-salary" id="salary-amt-label">Amount</label>
-        <input type="text" id="f-salary" inputmode="numeric" oninput="onSalaryChange()" onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
+        <input type="text" id="f-salary" inputmode="numeric" oninput="onSalaryChange()" onblur="onBudgetBlur(this)" onfocus="unfmtCurrency(this)">
         <div class="warn-text" id="salary-warn" hidden></div>
         <div class="hint" id="budget-hint" style="font-size:12px;color:#94a3b8;margin-top:2px;" hidden>The largest salary whose total cost to the charge stays within this budget will be calculated. Housing, ARP, and all benefits are held as set below.</div>
+      </div>
+
+      <hr class="sep">
+      <div class="sec-label">Churches</div>
+
+      <div class="field">
+        <label for="f-churches">Number of Churches</label>
+        <input type="number" id="f-churches" min="1" max="15" value="1" oninput="onChurchesChange()">
+      </div>
+
+      <!-- Reverse mode: cost-share label + Even split button, sitting in the right column beside Number of Churches -->
+      <div class="field" id="f-share-head" hidden></div>
+
+      <div class="field span2" id="f-single-church-wrap">
+        <label for="f-single-church">Church / Charge Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+        <input type="text" id="f-single-church" placeholder="e.g. First United Methodist Church">
+      </div>
+
+      <!-- Forward mode: Even/Custom split toggle, sitting in the right column beside Number of Churches -->
+      <div class="field" id="f-share-wrap" hidden></div>
+
+      <div class="field span2" id="f-mcaa-wrap" hidden>
+        <span>MCAA ($1,500 for 2 churches; $3,000 for 3+)</span>
+        <div class="radio-group">
+          <label><input type="radio" name="mcaa" value="arp" checked> Add to ARP</label>
+          <label><input type="radio" name="mcaa" value="stipend"> Taxable stipend</label>
+        </div>
+      </div>
+
+      <div class="field span2" id="f-church-rows" hidden>
+        <!-- populated dynamically: forward even/custom rows, or reverse linked %/$ table -->
       </div>
 
       <hr class="sep">
@@ -588,40 +648,6 @@
       <div class="field" id="f-allowance-wrap">
         <label for="f-allowance">Housing Allowance Amount</label>
         <input type="text" id="f-allowance" inputmode="numeric" disabled onblur="fmtCurrency(this)" onfocus="unfmtCurrency(this)">
-      </div>
-
-      <hr class="sep">
-      <div class="sec-label">Churches</div>
-
-      <div class="field">
-        <label for="f-churches">Number of Churches</label>
-        <input type="number" id="f-churches" min="1" max="15" value="1" oninput="onChurchesChange()">
-      </div>
-
-      <div class="field span2" id="f-single-church-wrap">
-        <label for="f-single-church">Church / Charge Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
-        <input type="text" id="f-single-church" placeholder="e.g. First United Methodist Church">
-      </div>
-
-      <div class="field" id="f-share-wrap" hidden>
-        <span>Cost Share</span>
-        <div class="radio-group">
-          <label><input type="radio" name="share" value="even" checked onchange="onShareChange()"> Even split</label>
-          <label><input type="radio" name="share" value="custom" onchange="onShareChange()"> Custom percentages</label>
-          <label id="share-flat-label" hidden><input type="radio" name="share" value="flat" onchange="onShareChange()"> Flat amount per church</label>
-        </div>
-      </div>
-
-      <div class="field" id="f-mcaa-wrap" hidden>
-        <span>MCAA ($1,500 for 2 churches; $3,000 for 3+)</span>
-        <div class="radio-group">
-          <label><input type="radio" name="mcaa" value="arp" checked> Add to ARP</label>
-          <label><input type="radio" name="mcaa" value="stipend"> Taxable stipend</label>
-        </div>
-      </div>
-
-      <div class="field span2" id="f-church-rows" hidden>
-        <!-- populated dynamically -->
       </div>
 
     </div>
@@ -794,7 +820,7 @@
 </div><!-- /container -->
 
 <footer style="text-align:center;padding:24px 0 16px;font-size:11px;color:#cbd5e1;line-height:1.8;">
-  v0.13.0 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
+  v0.14.0 &nbsp;·&nbsp; Designed by Simeon Law &nbsp;·&nbsp; Assisted by Claude Sonnet 4.6
 </footer>
 
 <!-- Vendored: JSZip v3.10.1 (MIT/GPLv3 dual-licensed) - https://stuk.github.io/jszip/ -->
@@ -1130,14 +1156,8 @@ function setCalcMode(mode) {
   document.getElementById('salary-sec-label').textContent = reverse ? 'Church Budget' : 'Cash Salary';
   document.getElementById('salary-amt-label').textContent = reverse ? 'Total Budget for the Charge' : 'Amount';
   document.getElementById('f-salary').placeholder = reverse ? 'e.g. $95,000' : '';
-  // "Flat amount per church" is reverse-only; leaving reverse mode, fall back to even split.
-  document.getElementById('share-flat-label').hidden = !reverse;
-  if (!reverse) {
-    const flatRadio = document.querySelector('input[name="share"][value="flat"]');
-    if (flatRadio && flatRadio.checked) document.querySelector('input[name="share"][value="even"]').checked = true;
-  }
   clearSalaryWarn();
-  onChurchesChange();   // rebuild church rows (share may have changed) and refresh the budget field
+  onChurchesChange();   // rebuild church rows / linked table, toggle the cost-share radios, refresh the budget field
   // Clear any prior results and reset the button (the meaning has changed).
   document.getElementById('results-card').hidden = true;
   hasCalculated = false;
@@ -1335,36 +1355,49 @@ function getMinSalary() {
 function onChurchesChange() {
   const n = parseInt(document.getElementById('f-churches').value) || 1;
   const isNY = getConference() === 'NY';
+  const reverse = calcMode === 'salary';
   document.getElementById('f-single-church-wrap').hidden = n >= 2;
-  document.getElementById('f-share-wrap').hidden = n < 2;
+  // Both modes use the same Even/Custom split toggle beside Number of Churches: forward in
+  // f-share-wrap (drives buildChurchRows), reverse in f-share-head (drives the linked table).
+  const shareWrap = document.getElementById('f-share-wrap');
+  shareWrap.hidden = n < 2 || reverse;
+  if (shareWrap.hidden) shareWrap.innerHTML = '';
+  const shareHead = document.getElementById('f-share-head');
+  shareHead.hidden = n < 2 || !reverse;
+  if (shareHead.hidden) shareHead.innerHTML = '';
   document.getElementById('f-mcaa-wrap').hidden = n < 2 || !isNY;
   document.getElementById('f-church-rows').hidden = n < 2;
-  if (n >= 2) buildChurchRows();
+  if (n >= 2) {
+    if (reverse) { ensureLinkedState(n); renderLinked(); }
+    else { renderFwdShareHead(); buildChurchRows(); }
+  }
   refreshBudgetField();
 }
 
-// Cost-share radio changed (even / custom % / flat amount).
-function onShareChange() {
+// Forward-mode Even/Custom split toggle (mirrors the reverse two-tone toggle). Even is the default.
+let fwdShareMode = 'even';   // 'even' | 'custom'
+
+function renderFwdShareHead() {
+  const evenOn = fwdShareMode === 'even';
+  document.getElementById('f-share-wrap').innerHTML =
+    '<span>Cost share by church</span>' +
+    '<div class="seg-toggle" role="group">' +
+      `<button type="button" class="split-seg${evenOn ? ' on' : ''}" onclick="fwdSetMode('even')">Even split</button>` +
+      `<button type="button" class="split-seg${evenOn ? '' : ' on'}" onclick="fwdSetMode('custom')">Custom split</button>` +
+    '</div>';
+}
+
+function fwdSetMode(mode) {
+  fwdShareMode = mode;
+  renderFwdShareHead();
   buildChurchRows();
-  refreshBudgetField();
 }
 
-// Reverse mode + flat split: the budget field becomes a read-only live sum of the per-church
-// amounts. Otherwise it's an editable salary/budget. Called whenever mode, church count, or
-// cost-share changes.
 function refreshBudgetField() {
   const reverse = calcMode === 'salary';
-  const n = parseInt(document.getElementById('f-churches').value) || 1;
-  const share = document.querySelector('input[name="share"]:checked')?.value;
-  const flat = reverse && n >= 2 && share === 'flat';
-  const f = document.getElementById('f-salary');
   const hint = document.getElementById('budget-hint');
-  f.readOnly = flat;
-  if (flat) {
-    updateFlatBudgetSum();
-    hint.textContent = 'Auto-calculated from the per-church amounts below.';
-    hint.hidden = false;
-  } else if (reverse) {
+  document.getElementById('f-salary').readOnly = false;
+  if (reverse) {
     hint.textContent = 'The largest salary whose total cost to the charge stays within this budget will be calculated. Housing, ARP, and all benefits are held as set below.';
     hint.hidden = false;
   } else {
@@ -1372,90 +1405,130 @@ function refreshBudgetField() {
   }
 }
 
-// Sum the per-church flat amounts into the read-only budget field and the subtotal line.
-function updateFlatBudgetSum() {
-  const n = parseInt(document.getElementById('f-churches').value) || 1;
-  let sum = 0;
-  for (let i = 0; i < n; i++) {
-    const el = document.getElementById(`c-amt-${i}`);
-    if (el) sum += parseCurrency(el);
+// ── Reverse-mode linked cost-share table (Church | % | $) ──────────────────
+// One table replaces even/custom/flat: fill in %s, dollar amounts, or hit "Even split" and the
+// other column keeps in step. State is per-church names + percentages; amounts are derived
+// (pct × budget) and the budget is the f-salary field. Amounts are the "absolute" input —
+// editing one makes the budget their sum; percentages are "relative" and need the budget.
+let linkedNames = [];
+let linkedPcts  = [];
+let linkedMode  = 'even';   // 'even' | 'custom' — drives the two-tone toggle; even is the default
+
+function ensureLinkedState(n) {
+  while (linkedNames.length < n) linkedNames.push('');
+  linkedNames.length = n;
+  if (linkedPcts.length !== n || linkedPcts.some(p => !isFinite(p))) {
+    linkedPcts = Array.from({ length: n }, () => 100 / n);
+    linkedMode = 'even';    // church count changed → back to an even split
   }
-  const disp = '$' + Math.round(sum).toLocaleString('en-US');
-  document.getElementById('f-salary').value = disp;
-  const sv = document.getElementById('flat-sumval');
-  if (sv) sv.textContent = disp;
 }
 
+// Penny-exact amounts (foot to budget) when percentages total 100; otherwise pct×budget each
+// so a mismatch is visible and the strict 100% check can flag it.
+function computeLinkedAmounts(budget, pcts) {
+  const sum = pcts.reduce((a, b) => a + b, 0);
+  if (Math.abs(sum - 100) < 0.001) return splitByChurch(budget, pcts.map(p => ({ pct: p / 100 })));
+  return pcts.map(p => Math.round(budget * p / 100 * 100) / 100);
+}
+
+const pctStr   = p => String(+(+p).toFixed(2));
+const parseNum = v => parseFloat(String(v).replace(/[^0-9.]/g, '')) || 0;
+const round2   = n => Math.round(n * 100) / 100;   // cap user-entered percentages at 2 decimals
+const escAttr  = s => esc(s).replace(/"/g, '&quot;');
+
+// Snap a forward-mode % input to 2 decimals on blur (keeps stored value == shown), then re-check the sum.
+function snapPctInput(el) { el.value = pctStr(parseNum(el.value)); checkPctSum(); }
+
+function renderLinked() {
+  const n = parseInt(document.getElementById('f-churches').value) || 1;
+  if (n < 2) return;
+  ensureLinkedState(n);
+  const budget = parseCurrency(document.getElementById('f-salary'));
+  const amt = computeLinkedAmounts(budget, linkedPcts);
+  const sumPct = linkedPcts.reduce((a, b) => a + b, 0);
+  const sumAmt = amt.reduce((a, b) => a + b, 0);
+  // Two-tone toggle: the active side carries the "on" styling. Even is the default; editing a
+  // share (or clicking Custom split) switches the toggle to the custom side.
+  const evenOn = linkedMode === 'even';
+  document.getElementById('f-share-head').innerHTML =
+    '<span>Cost share by church</span>' +
+    '<div class="seg-toggle" role="group">' +
+      `<button type="button" class="split-seg${evenOn ? ' on' : ''}" onclick="linkedSetMode('even')">Even split</button>` +
+      `<button type="button" class="split-seg${evenOn ? '' : ' on'}" onclick="linkedSetMode('custom')">Custom split</button>` +
+    '</div>';
+  let h = '<table class="linked-split"><thead><tr><th>Church</th><th class="r">Share %</th><th class="r">Amount</th></tr></thead><tbody>';
+  for (let i = 0; i < n; i++) {
+    h += '<tr>' +
+      `<td><input type="text" value="${escAttr(linkedNames[i])}" placeholder="Name (optional)" oninput="linkedEditName(${i},this.value)"></td>` +
+      `<td class="r"><span class="lk-pct-wrap"><input type="text" inputmode="decimal" class="lk-pct" value="${pctStr(linkedPcts[i])}" onchange="linkedEditPct(${i},this.value)"><span class="lk-suffix">%</span></span></td>` +
+      `<td class="r"><input type="text" inputmode="numeric" class="lk-amt" value="${fmt(amt[i])}" onchange="linkedEditAmt(${i},this.value)"></td>` +
+      '</tr>';
+  }
+  const off = Math.abs(sumPct - 100) > 0.01;
+  h += '</tbody><tfoot><tr class="lk-tot"><td>Total</td>' +
+       `<td class="r">${pctStr(sumPct)}%</td><td class="r">${fmt(sumAmt)}</td></tr></tfoot></table>` +
+       `<div class="pct-warn"${off ? '' : ' hidden'}>${off ? `Percentages total ${pctStr(sumPct)}% — must equal 100% before calculating.` : ''}</div>`;
+  document.getElementById('f-church-rows').innerHTML = h;
+}
+
+function linkedEditName(i, val) { linkedNames[i] = val; }
+
+// Edit a % → its amount recomputes against the current budget; the budget is unchanged.
+function linkedEditPct(i, val) { linkedPcts[i] = round2(parseNum(val)); linkedMode = 'custom'; renderLinked(); }
+
+// Edit an amount → the budget becomes the sum of amounts, and every % recomputes as amount ÷ budget.
+function linkedEditAmt(i, val) {
+  const amt = computeLinkedAmounts(parseCurrency(document.getElementById('f-salary')), linkedPcts);
+  amt[i] = parseNum(val);
+  const budget = amt.reduce((a, b) => a + b, 0);
+  linkedPcts = amt.map(a => budget > 0 ? a / budget * 100 : 100 / amt.length);
+  linkedMode = 'custom';
+  document.getElementById('f-salary').value = fmt(budget);
+  renderLinked();
+}
+
+// Toggle side clicked: Even split resets to equal shares; Custom split just unlocks custom intent.
+function linkedSetMode(mode) {
+  linkedMode = mode;
+  if (mode === 'even') {
+    const n = parseInt(document.getElementById('f-churches').value) || 1;
+    linkedPcts = Array.from({ length: n }, () => 100 / n);
+  }
+  renderLinked();
+}
+
+// Budget field blur: format, and (reverse + multi) rescale the linked amounts to the new budget.
+function onBudgetBlur(el) {
+  fmtCurrency(el);
+  if (calcMode === 'salary' && (parseInt(document.getElementById('f-churches').value) || 1) >= 2) renderLinked();
+}
+
+// Forward mode: same tabulated Church | Share % table as the reverse flow (name column stretches).
+// Even split shows equal read-only shares; custom lets each % be edited, with a Total row.
 function buildChurchRows() {
   const n = parseInt(document.getElementById('f-churches').value) || 1;
-  const share = document.querySelector('input[name="share"]:checked').value;
-  const isCustom = share === 'custom';
-  const isFlat   = share === 'flat';
+  const isCustom = fwdShareMode === 'custom';
   const wrap = document.getElementById('f-church-rows');
-  wrap.innerHTML = '';
+  const even = pctStr(100 / n);
 
-  const lbl = document.createElement('div');
-  lbl.style.cssText = 'font-size:13px;color:#475569;margin-bottom:8px;';
-  lbl.textContent = isCustom ? 'Church name and percentage:'
-                  : isFlat   ? 'Church name and the amount each church pays:'
-                  :            'Church names (optional):';
-  wrap.appendChild(lbl);
-
+  let h = '<table class="linked-split"><thead><tr><th>Church</th><th class="r">Share %</th></tr></thead><tbody>';
   for (let i = 0; i < n; i++) {
-    const row = document.createElement('div');
-    row.className = 'church-row';
-
-    const clabel = document.createElement('span');
-    clabel.className = 'clabel';
-    clabel.textContent = `Church ${i + 1}`;
-
-    const nameInp = document.createElement('input');
-    nameInp.type = 'text';
-    nameInp.id = `c-name-${i}`;
-    nameInp.placeholder = 'Name (optional)';
-
-    row.appendChild(clabel);
-    row.appendChild(nameInp);
-
-    if (isCustom) {
-      const pctInp = document.createElement('input');
-      pctInp.type = 'number';
-      pctInp.id = `c-pct-${i}`;
-      pctInp.min = 0; pctInp.max = 100; pctInp.step = 0.1;
-      pctInp.placeholder = '%';
-      pctInp.addEventListener('input', checkPctSum);
-      const pctLbl = document.createElement('span');
-      pctLbl.style.cssText = 'font-size:13px;color:#64748b;';
-      pctLbl.textContent = '%';
-      row.appendChild(pctInp);
-      row.appendChild(pctLbl);
-    } else if (isFlat) {
-      const amtInp = document.createElement('input');
-      amtInp.type = 'text';
-      amtInp.id = `c-amt-${i}`;
-      amtInp.className = 'amt';
-      amtInp.inputMode = 'numeric';
-      amtInp.placeholder = '$0';
-      amtInp.addEventListener('input', updateFlatBudgetSum);
-      amtInp.addEventListener('blur',  () => fmtCurrency(amtInp));
-      amtInp.addEventListener('focus', () => unfmtCurrency(amtInp));
-      row.appendChild(amtInp);
-    }
-
-    wrap.appendChild(row);
+    const pctCell = isCustom
+      ? `<td class="r"><span class="lk-pct-wrap"><input type="text" inputmode="decimal" class="lk-pct" id="c-pct-${i}" placeholder="0" oninput="checkPctSum()" onchange="snapPctInput(this)"><span class="lk-suffix">%</span></span></td>`
+      : `<td class="r"><span class="lk-even-val">${even}%</span></td>`;
+    h += '<tr>' +
+      `<td><input type="text" id="c-name-${i}" placeholder="Name (optional)"></td>` +
+      pctCell +
+      '</tr>';
   }
-
+  h += '</tbody>';
   if (isCustom) {
-    const warn = document.createElement('div');
-    warn.className = 'pct-warn';
-    warn.id = 'pct-warn';
-    wrap.appendChild(warn);
-  } else if (isFlat) {
-    const sumline = document.createElement('div');
-    sumline.className = 'sumline';
-    sumline.innerHTML = '<span class="lab">Total budget (sum of church amounts)</span><span class="val" id="flat-sumval"></span>';
-    wrap.appendChild(sumline);
+    h += '<tfoot><tr class="lk-tot"><td>Total</td><td class="r" id="c-pct-total">0%</td></tr></tfoot>';
   }
+  h += '</table>';
+  if (isCustom) h += '<div class="pct-warn" id="pct-warn"></div>';
+  wrap.innerHTML = h;
+  if (isCustom) checkPctSum();
 }
 
 function checkPctSum() {
@@ -1465,8 +1538,10 @@ function checkPctSum() {
     const el = document.getElementById(`c-pct-${i}`);
     if (el) sum += parseFloat(el.value) || 0;
   }
+  const tot = document.getElementById('c-pct-total');
+  if (tot) tot.textContent = `${pctStr(sum)}%`;
   const warn = document.getElementById('pct-warn');
-  if (warn) warn.textContent = Math.abs(sum - 100) > 0.01 ? `Total: ${sum.toFixed(1)}% — must equal 100%` : '';
+  if (warn) warn.textContent = Math.abs(sum - 100) > 0.01 ? `Percentages total ${pctStr(sum)}% — must equal 100% before calculating.` : '';
 }
 
 // ─────────────────────────────────────────
@@ -1532,7 +1607,10 @@ function readInputs() {
   const arpType     = document.querySelector('input[name="arp-type"]:checked').value;
   const arpCustom   = arpType === 'custom' ? parseCurrency(document.getElementById('f-arp')) : 0;
   const numChurches = parseInt(document.getElementById('f-churches').value)     || 1;
-  const shareType   = numChurches >= 2 ? document.querySelector('input[name="share"]:checked').value : 'even';
+  // Reverse mode uses the linked % / $ table ('linked'); forward mode uses the even/custom radios.
+  const shareType   = numChurches < 2 ? 'even'
+                    : calcMode === 'salary' ? 'linked'
+                    : fwdShareMode;
   const mcaaType    = numChurches >= 2 ? document.querySelector('input[name="mcaa"]:checked').value  : 'arp';
   const pastorName  = document.getElementById('f-name').value.trim();
   const churchName  = numChurches === 1 ? document.getElementById('f-single-church').value.trim() : '';
@@ -1540,17 +1618,12 @@ function readInputs() {
 
   const churches = [];
   if (numChurches >= 2) {
-    if (shareType === 'flat') {
-      // Reverse mode: each church's dollar amount is entered directly; the budget is their sum,
-      // and each church's share percentage is its amount ÷ the sum.
-      const amts = [];
-      for (let i = 0; i < numChurches; i++) amts.push(parseCurrency(document.getElementById(`c-amt-${i}`)));
-      const sum = amts.reduce((a, b) => a + b, 0);
-      salary = sum;
+    if (shareType === 'linked') {
+      // Reverse mode: the budget is the f-salary field; percentages come from the linked table's
+      // state (full precision), and each church's name from the same state.
       for (let i = 0; i < numChurches; i++) {
-        const name = document.getElementById(`c-name-${i}`)?.value.trim() || `Church ${i + 1}`;
-        const pct = sum > 0 ? amts[i] / sum : 1 / numChurches;
-        churches.push({ name, pct, flatAmount: amts[i] });
+        const name = (linkedNames[i] || '').trim() || `Church ${i + 1}`;
+        churches.push({ name, pct: (linkedPcts[i] || 0) / 100 });
       }
     } else {
       for (let i = 0; i < numChurches; i++) {
@@ -1697,7 +1770,7 @@ function calculate() {
   // would leave the per-church shares not reconciling to the total, but loose enough to absorb
   // floating-point noise and clean splits like 33.33/33.33/33.34. Matches the real-time
   // pct-sum warning (checkPctSum), so if that warning is showing, this blocks.
-  if (inp.numChurches >= 2 && inp.shareType === 'custom') {
+  if (inp.numChurches >= 2 && (inp.shareType === 'custom' || inp.shareType === 'linked')) {
     const totalPct = inp.churches.reduce((s, c) => s + c.pct, 0);
     if (Math.abs(totalPct - 1) > 0.0001) {
       alert('Percentages must total 100% before calculating.');
