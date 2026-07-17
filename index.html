@@ -1461,7 +1461,7 @@ function renderLinked() {
     h += '<tr>' +
       `<td><input type="text" value="${escAttr(linkedNames[i])}" placeholder="Name (optional)" oninput="linkedEditName(${i},this.value)"></td>` +
       `<td class="r"><span class="lk-pct-wrap"><input type="text" inputmode="decimal" class="lk-pct" value="${pctStr(linkedPcts[i])}" onchange="linkedEditPct(${i},this.value)"><span class="lk-suffix">%</span></span></td>` +
-      `<td class="r"><input type="text" inputmode="numeric" class="lk-amt" value="${fmt(amt[i])}" onchange="linkedEditAmt(${i},this.value)"></td>` +
+      `<td class="r"><input type="text" inputmode="numeric" class="lk-amt"${amt[i] ? ` value="${fmt(amt[i])}"` : ' placeholder="$0"'} onchange="linkedEditAmt(${i},this.value)"></td>` +
       '</tr>';
   }
   const off = Math.abs(sumPct - 100) > 0.01;
